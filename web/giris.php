@@ -49,6 +49,14 @@ try {
         $pdo->prepare('INSERT INTO kullanicilar (uid, okul_no, ad, rol, sinif, son_giris) VALUES (?, ?, ?, ?, ?, ?)')
             ->execute([$k['uid'], $k['okul_no'], $k['ad'], $k['rol'], $k['sinif'], $zaman]);
     }
+    if ($k['rol'] === 'ogrenci') {
+        $d = $pdo->prepare('UPDATE ders_ogrencileri SET ad = ?, sinif = ?, son_giris = ? WHERE ders_id = ? AND okul_no = ?');
+        $d->execute([$k['ad'], $k['sinif'], $zaman, $k['ders_id'], $k['okul_no']]);
+        if ($d->rowCount() === 0) {
+            $pdo->prepare('INSERT INTO ders_ogrencileri (ders_id, okul_no, ad, sinif, son_giris) VALUES (?, ?, ?, ?, ?)')
+                ->execute([$k['ders_id'], $k['okul_no'], $k['ad'], $k['sinif'], $zaman]);
+        }
+    }
 } catch (Throwable $e) {
     error_log('giris.php: ' . get_class($e) . ' ' . $e->getMessage());
     html_sayfa('Giriş yapılamadı', '<p>Sunucuda bir hata oluştu. Lütfen biraz sonra yeniden deneyin.</p>', 500);
@@ -57,7 +65,8 @@ try {
 oturum_baslat();
 session_regenerate_id(true);
 $_SESSION = [
-    // Ders token'daki ders_id ile sabitlenir; uygulamada dersi değiştiren bir işlem yoktur.
+    // Ders token'daki ders_id ile, öğretmenin sınıfları token'daki siniflar ile sabitlenir;
+    // uygulamada bunları değiştiren bir işlem yoktur.
     'kullanici' => [
         'uid' => $k['uid'],
         'okul_no' => $k['okul_no'],
@@ -66,6 +75,7 @@ $_SESSION = [
         'sinif' => $k['sinif'],
         'ders_id' => $k['ders_id'],
         'ders' => $k['ders'],
+        'siniflar' => $k['siniflar'],
     ],
     'bitis' => time() + OTURUM_SURESI,
     'csrf' => bin2hex(random_bytes(32)),

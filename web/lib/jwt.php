@@ -48,6 +48,21 @@ function jwt_dogrula(string $token, string $anahtar): array
     if ($rol !== 'ogrenci' && $rol !== 'ogretmen') throw new RuntimeException('Giriş anahtarındaki rol geçersiz.');
     if ($rol === 'ogrenci' && trim((string)($p['okul_no'] ?? '')) === '') throw new RuntimeException('Giriş anahtarında okul numarası yok.');
 
+    // siniflar: yalnız öğretmende, boş olmayan metinlerden oluşan dizi. Öğrencide her zaman boş.
+    $siniflar = [];
+    if ($rol === 'ogretmen') {
+        if (!isset($p['siniflar']) || !is_array($p['siniflar']) || !array_is_list($p['siniflar'])) {
+            throw new RuntimeException('Giriş anahtarında öğretmenin sınıf listesi (siniflar) yok.');
+        }
+        foreach ($p['siniflar'] as $s) {
+            if (!is_string($s) || trim($s) === '' || mb_strlen($s) > 50) {
+                throw new RuntimeException('Giriş anahtarındaki sınıf listesi geçersiz.');
+            }
+            $siniflar[] = trim($s);
+        }
+        $siniflar = array_values(array_unique($siniflar));
+    }
+
     return [
         'uid' => trim((string)$p['uid']),
         'okul_no' => trim((string)($p['okul_no'] ?? '')),
@@ -56,6 +71,7 @@ function jwt_dogrula(string $token, string $anahtar): array
         'sinif' => trim((string)($p['sinif'] ?? '')),
         'ders_id' => trim((string)$p['ders_id']),
         'ders' => trim((string)($p['ders'] ?? '')),
+        'siniflar' => $siniflar,
         'jti' => $p['jti'],
         'exp' => $p['exp'],
     ];

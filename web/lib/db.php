@@ -51,9 +51,6 @@ function sema_guncelle(PDO $pdo): void
         temrin_no INT NOT NULL,
         baslik VARCHAR(250) NOT NULL,
         tanim $metin NOT NULL,
-        erisim_acik INT NOT NULL DEFAULT 0,
-        erisim_baslangic VARCHAR(20) NULL,
-        erisim_bitis VARCHAR(20) NULL,
         olusturma VARCHAR(20) NOT NULL)$son");
     // Puanlar okul_no + ders_id ile saklanır; her temrin için öğrencinin tek sonucu vardır.
     $pdo->exec("CREATE TABLE IF NOT EXISTS sonuclar (
@@ -75,6 +72,23 @@ function sema_guncelle(PDO $pdo): void
     ] as $sql) {
         try { $pdo->exec($sql); } catch (PDOException) { /* zaten var */ }
     }
+    // Temrin erişimi sınıf bazındadır: her öğretmen yalnızca kendi sınıfları için açar/kapatır.
+    $pdo->exec("CREATE TABLE IF NOT EXISTS temrin_erisim (
+        temrin_id INT NOT NULL,
+        sinif VARCHAR(50) NOT NULL,
+        erisim_acik INT NOT NULL DEFAULT 0,
+        erisim_baslangic VARCHAR(20) NULL,
+        erisim_bitis VARCHAR(20) NULL,
+        PRIMARY KEY (temrin_id, sinif))$son");
+    // Derse giriş yapan öğrenciler: öğretmen tablosunda teslim etmeyenler de görünsün diye.
+    $pdo->exec("CREATE TABLE IF NOT EXISTS ders_ogrencileri (
+        ders_id VARCHAR(64) NOT NULL,
+        okul_no VARCHAR(32) NOT NULL,
+        ad VARCHAR(150) NOT NULL,
+        sinif VARCHAR(50) NOT NULL DEFAULT '',
+        son_giris VARCHAR(20) NOT NULL,
+        PRIMARY KEY (ders_id, okul_no))$son");
+    try { $pdo->exec('CREATE INDEX sonuclar_sinif ON sonuclar (ders_id, sinif)'); } catch (PDOException) { /* zaten var */ }
     $pdo->exec("CREATE TABLE IF NOT EXISTS kullanilan_tokenlar (jti VARCHAR(64) PRIMARY KEY, bitis INT NOT NULL)$son");
 
     $pdo->exec('DELETE FROM sema_bilgi');
@@ -82,18 +96,19 @@ function sema_guncelle(PDO $pdo): void
 }
 
 /**
- * Öğrencinin temrine girip teslim edebilmesi için: öğretmen erişimi açmış olmalı ve
- * (tanımlıysa) şu an başlangıç–bitiş aralığında olmalı. [izin, Türkçe açıklama] döner.
+ * Öğrencinin temrine girip teslim edebilmesi için: öğretmen temrini öğrencinin sınıfına açmış olmalı ve
+ * (tanımlıysa) şu an başlangıç–bitiş aralığında olmalı. $erisim: temrin_erisim satırı ya da null.
+ * [izin, Türkçe açıklama] döner.
  */
-function temrin_erisimi(array $t, ?string $simdi = null): array
+function temrin_erisimi(?array $erisim, ?string $simdi = null): array
 {
     $simdi ??= utc_simdi();
-    if (!(int)$t['erisim_acik']) return [false, 'Bu temrin öğretmen tarafından erişime kapatılmış.'];
-    if (!empty($t['erisim_baslangic']) && $simdi < $t['erisim_baslangic']) {
-        return [false, 'Temrin ' . yerel_zaman($t['erisim_baslangic']) . ' tarihinde başlayacak.'];
+    if (!$erisim || !(int)$erisim['erisim_acik']) return [false, 'Bu temrin erişime kapalı.'];
+    if (!empty($erisim['erisim_baslangic']) && $simdi < $erisim['erisim_baslangic']) {
+        return [false, 'Temrin ' . yerel_zaman($erisim['erisim_baslangic']) . ' tarihinde başlayacak.'];
     }
-    if (!empty($t['erisim_bitis']) && $simdi > $t['erisim_bitis']) {
-        return [false, 'Temrinin süresi ' . yerel_zaman($t['erisim_bitis']) . ' tarihinde doldu.'];
+    if (!empty($erisim['erisim_bitis']) && $simdi > $erisim['erisim_bitis']) {
+        return [false, 'Temrinin süresi ' . yerel_zaman($erisim['erisim_bitis']) . ' tarihinde doldu.'];
     }
     return [true, ''];
 }
