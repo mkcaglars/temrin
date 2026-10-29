@@ -26,13 +26,16 @@ function puan_tablosu(string $dersId, array $siniflar): array
     foreach ($st as $r) $ogrenciler[$r['okul_no']] = ['okul_no' => $r['okul_no'], 'ad_soyad' => $r['ad'], 'sinif' => $r['sinif'], 'puanlar' => []];
 
     $deg = [$dersId];
-    $st = $pdo->prepare('SELECT temrin_id, okul_no, ad, sinif, puan, kesin FROM sonuclar WHERE ders_id = ? AND ' . in_kosulu('sinif', $siniflar, $deg));
+    $st = $pdo->prepare('SELECT s.temrin_id, s.okul_no, s.ad, s.sinif, s.puan, s.kesin, c.degerlendiren FROM sonuclar s
+        LEFT JOIN calismalar c ON c.temrin_id = s.temrin_id AND c.okul_no = s.okul_no
+        WHERE s.ders_id = ? AND ' . in_kosulu('s.sinif', $siniflar, $deg));
     $st->execute($deg);
     $temrinPuanlari = [];
     foreach ($st as $r) {
         $o = &$ogrenciler[$r['okul_no']];
         $o ??= ['okul_no' => $r['okul_no'], 'ad_soyad' => $r['ad'], 'sinif' => $r['sinif'], 'puanlar' => []];
-        $o['puanlar'][(int)$r['temrin_id']] = ['puan' => $r['puan'] === null ? null : (int)$r['puan'], 'kesin' => (bool)$r['kesin']];
+        $o['puanlar'][(int)$r['temrin_id']] = ['puan' => $r['puan'] === null ? null : (int)$r['puan'], 'kesin' => (bool)$r['kesin'],
+                                               'degerlendiren' => $r['degerlendiren']];
         if ($r['kesin'] && $r['puan'] !== null) $temrinPuanlari[(int)$r['temrin_id']][] = (int)$r['puan'];
         unset($o);
     }

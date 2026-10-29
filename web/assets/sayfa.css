@@ -1,0 +1,25 @@
+/* Temrin sayfası: A4, her öğrenci ayrı sayfa. */
+@page { size: A4; margin: 15mm 15mm 12mm; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #e5e7eb; color: #111; font: 11pt/1.4 Calibri, Carlito, "Segoe UI", Arial, sans-serif; }
+.arac { position: sticky; top: 0; display: flex; gap: 12px; align-items: center; padding: 8px 16px; background: #fff; border-bottom: 1px solid #d1d5db; z-index: 1; }
+.arac button { font: inherit; padding: 4px 14px; border-radius: 6px; border: 1px solid #2563eb; background: #2563eb; color: #fff; cursor: pointer; }
+.sayfa { width: 210mm; min-height: 297mm; margin: 12px auto; padding: 15mm; background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .12); }
+h1 { text-align: center; font-size: 14pt; margin: 0 0 10px; }
+p { margin: 3px 0; }
+ul { margin: 2px 0 6px; padding-left: 22px; }
+.altcizgi { margin-top: 10px; text-decoration: underline; }
+table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+th, td { border: 1px solid #000; padding: 3px 5px; vertical-align: top; text-align: left; }
+th { font-weight: normal; text-align: center; }
+.sayi { width: 16mm; text-align: center; }
+.tespit { width: 55mm; font-size: 9.5pt; }
+.toplam td:first-child { text-align: right; }
+.imza { display: flex; justify-content: space-between; gap: 24px; margin-top: 18px; }
+.imza p { margin: 6px 0; }
+@media print {
+  body { background: #fff; }
+  .yazdirma { display: none; }
+  .sayfa { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; page-break-after: always; break-after: page; }
+  .sayfa:last-of-type { page-break-after: auto; break-after: auto; }
+}

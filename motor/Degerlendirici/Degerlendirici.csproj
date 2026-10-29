@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Temrin test motoru: öğrenci projesini derler, CSV'deki kontrolleri uygular. Tarayıcıda (WebAssembly) ve testlerde çalışır. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Temrin.Motor</RootNamespace>
+    <AssemblyName>Temrin.Degerlendirici</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\c-lesson\src\Compiler\Compiler.csproj" />
+    <ProjectReference Include="..\..\c-lesson\src\MiniWinForms\MiniWinForms.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,27 @@
+/* Temrin paneli: c-lesson editörünün sağında görev, sorular ve sonuç. */
+.temrin-panel { flex: 0 0 360px; max-width: 42vw; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; background: #fff; border-left: 1px solid #d6dbe4; padding: 12px 14px; font-size: 13px; line-height: 1.5; }
+.temrin-panel.kapali { display: none; }
+.temrin-panel h3 { font-size: 13px; margin: 12px 0 4px; color: #344054; }
+.temrin-panel p { margin: 4px 0; }
+.temrin-panel ol, .temrin-panel ul { margin: 4px 0; padding-left: 20px; }
+.temrin-panel li { margin: 2px 0; }
+.tp-ust { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tp-sure { margin-top: 4px; font-weight: 600; color: #1d4ed8; }
+.tp-sure.asildi { color: #b91c1c; }
+.tp-tablo { width: 100%; border-collapse: collapse; }
+.tp-tablo td, .tp-tablo th { border-bottom: 1px solid #eef0f4; padding: 4px 2px; text-align: left; vertical-align: top; }
+.tp-tablo .sayi { text-align: center; width: 48px; }
+.tp-tespit td { color: #b45309; font-size: 12px; border-bottom: 1px solid #eef0f4; }
+.tp-soru { margin: 8px 0 12px; }
+.tp-kod { background: #1e1e1e; color: #d4d4d4; padding: 8px; border-radius: 6px; font: 12px/1.45 Consolas, "Cascadia Mono", monospace; white-space: pre; overflow-x: auto; margin: 6px 0; }
+.tp-cevap { width: 100%; font: 12px/1.45 Consolas, "Cascadia Mono", monospace; margin-top: 4px; resize: vertical; }
+.tp-secenekler label { display: block; margin: 3px 0; cursor: pointer; }
+.tp-teslim { width: 100%; margin-top: 8px; }
+.tp-sonuc { background: #f8fafc; border: 1px solid #e3e7ef; border-radius: 8px; padding: 8px 10px; }
+.tp-puan { margin: 4px 0 8px; }
+.tp-puan .buyuk { font-size: 26px; font-weight: 700; }
+.temrin-panel .rozet { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; background: #fef3c7; color: #b45309; white-space: nowrap; }
+.tp-bekle .modal-body { display: flex; align-items: center; gap: 12px; padding: 20px 24px; }
+.spinner { width: 22px; height: 22px; border: 3px solid #c7d2fe; border-top-color: #4f46e5; border-radius: 50%; animation: tp-don 0.8s linear infinite; }
+@keyframes tp-don { to { transform: rotate(360deg); } }
+@media (max-width: 900px) { .temrin-panel { flex-basis: 300px; } }

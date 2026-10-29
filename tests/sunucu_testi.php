@@ -216,6 +216,87 @@ dogrula(preg_match('/filename="temrin-programlama-csharp-11-donanim-b\.csv"/', $
 dogrula(istek('/api/disa-aktar.php?sinif=' . urlencode('11 Yazılım A'), ['oturum' => $OA])['durum'] === 403, 'yetkisiz sınıf CSV → 403');
 dogrula(istek('/api/disa-aktar.php?ders_id=8', ['oturum' => $OA])['durum'] === 403, 'CSV ders_id değiştirmek → 403');
 
+echo "Temrin CSV ve çalışma\n";
+$post = fn(array $o, string $yol, array $g) => istek($yol, ['oturum' => $o, 'govde' => $g]);
+$csv = file_get_contents("$kok/sablon/temrin-3-donguler.csv");
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'csv' => str_replace('bilgi;temrin_no;;;;;;;3;', 'bilgi;temrin_no;;;;;;;30;', $csv)]);
+dogrula($r['durum'] === 200 && $r['json']['temrin']['kontrol_sayisi'] === 17, 'öğretmen CSV yükler');
+$TID = $r['json']['temrin']['temrin_id'];
+$bozuk = str_replace(['olcut;O9;;5;', 'kod_yapisi;btnFor.Click;;for;'], ['olcut;O9;;6;', 'kod_yapisi;btnFor.Click;;fore;'], $csv);
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'csv' => $bozuk]);
+dogrula($r['durum'] === 400 && count($r['json']['hatalar']) >= 2 && str_contains(implode(' ', $r['json']['hatalar']), "bilinmeyen kod yapısı 'fore'"), 'hatalı CSV satır satır reddedilir');
+dogrula($post($S1, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'csv' => $csv])['durum'] === 403, 'öğrenci temrin yükleyemez');
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'csv' => str_replace('bilgi;temrin_no;;;;;;;3;', 'bilgi;temrin_no;;;;;;;30;', $csv)]);
+dogrula($r['durum'] === 409 && $r['json']['kod'] === 'TEMRIN_VAR', 'aynı temrin numarası onaysız üzerine yazılmaz');
+
+$cal = fn(array $o, array $g) => istek('/api/calisma.php?' . http_build_query($g), ['oturum' => $o]);
+dogrula($cal($S1, ['temrin_id' => $TID])['json']['kod'] === 'ERISIM_KAPALI', 'kapalı temrin açılamaz');
+$post($OA, '/api/ogretmen.php', ['islem' => 'erisim', 'temrin_id' => $TID, 'sinif' => '11 Donanım B', 'erisim_acik' => true]);
+$r = $cal($S1, ['temrin_id' => $TID]);
+$jsonMetin = $r['govde'];
+dogrula($r['durum'] === 200 && count($r['json']['temrin']['sorular']) === 2, 'açık temrin öğrenciye görev ve soruları verir');
+dogrula(!str_contains($jsonMetin, 'lstSonuc=1|2|3') && !str_contains($jsonMetin, 'en az bir kez') && !isset($r['json']['kontroller']),
+    'teslimden önce kontroller ve soru cevapları öğrenciye gitmez');
+dogrula(!str_contains($jsonMetin, '1\\n2\\n3'), 'çıktı sorusunun beklenen cevabı gizli');
+dogrula($cal($S3, ['temrin_id' => $TID])['durum'] === 403, 'temrin başka sınıfa açılmadıkça o sınıfın öğrencisi açamaz');
+dogrula($cal($S1, ['temrin_id' => $TID, 'okul_no' => '2045'])['durum'] === 403, 'öğrenci başka öğrencinin çalışmasını isteyemez');
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'degerlendirme', 'temrin_id' => $TID, 'sonuc' => ['sonuclar' => []]])['durum'] === 409, 'teslimden önce değerlendirme gönderilemez');
+$veri = ['format' => 1, 'namespace' => 'DonguTemrin', 'files' => [['name' => 'Program.cs', 'content' => '// ...']], 'forms' => new stdClass()];
+$r = $post($S1, '/api/calisma.php', ['islem' => 'kaydet', 'temrin_id' => $TID, 'veri' => $veri, 'surum' => 0]);
+dogrula($r['durum'] === 200 && $r['json']['surum'] === 1, 'proje kaydedilir, sürüm artar');
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'kaydet', 'temrin_id' => $TID, 'veri' => $veri, 'surum' => 0])['durum'] === 409, 'eski sürümle kayıt → 409 çakışma');
+$post($S1, '/api/calisma.php', ['islem' => 'cevap', 'temrin_id' => $TID, 'cevaplar' => ['S1' => 'koşul sonda', 'S2' => "1\n2\n3\n", 'S99' => 'yok sayılır']]);
+$r = $post($S1, '/api/calisma.php', ['islem' => 'teslim', 'temrin_id' => $TID, 'veri' => $veri, 'cevaplar' => ['S1' => 'koşul sonda', 'S2' => "1\n2\n3\n"]]);
+dogrula($r['durum'] === 200 && count($r['json']['kontroller']) === 17, 'teslim → kontroller tarayıcıya verilir');
+dogrula($r['json']['sonuc']['kesin'] === false, 'değerlendirme öncesi sonuç kesin değil');
+$o8 = array_values(array_filter($r['json']['sonuc']['olcutler'], fn($o) => $o['no'] === 'O8'))[0];
+$s2 = array_values(array_filter($o8['kalemler'], fn($k) => $k['no'] === 'S2'))[0];
+dogrula($s2['alinan'] === 3, 'çıktı tahmini sunucuda puanlanır (sondaki boş satır önemsenmez)');
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'kaydet', 'temrin_id' => $TID, 'veri' => $veri, 'surum' => 2])['durum'] === 409, 'teslimden sonra proje değiştirilemez');
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'teslim', 'temrin_id' => $TID, 'veri' => $veri])['durum'] === 409, 'ikinci teslim reddedilir');
+$hepsi = fn(bool $g) => ['derlendi' => true, 'sonuclar' => array_map(fn($k) => ['no' => $k['no'], 'gecti' => $g, 'mesaj' => $g ? '' : 'motor mesajı'], $r['json']['kontroller'])];
+$d = $post($S1, '/api/calisma.php', ['islem' => 'degerlendirme', 'temrin_id' => $TID, 'sonuc' => $hepsi(true)]);
+dogrula($d['durum'] === 200 && $d['json']['sonuc']['puan'] === 70, 'öğrenci tarayıcısındaki değerlendirme puanlanır (70: öğretmen ölçütleri ve açık sorulu ölçüt bekliyor)');
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'degerlendirme', 'temrin_id' => $TID, 'sonuc' => $hepsi(true)])['durum'] === 409, 'değerlendirme ikinci kez gönderilemez');
+dogrula($cal($S1, ['temrin_id' => $TID])['json']['calisma']['salt_okunur'] === true, 'teslimden sonra çalışma salt okunur açılır');
+$post($OA, '/api/ogretmen.php', ['islem' => 'erisim', 'temrin_id' => $TID, 'sinif' => '11 Donanım B', 'erisim_acik' => false]);
+dogrula($cal($S1, ['temrin_id' => $TID])['durum'] === 200, 'temrin kapansa da teslim edilen çalışma açılır');
+
+dogrula(istek("/api/calisma.php?temrin_id=$TID&okul_no=3268", ['oturum' => $OA])['json']['calisma']['ogrenci']['okul_no'] === '3268', 'öğretmen kendi sınıfındaki teslimi görür');
+dogrula(istek("/api/calisma.php?temrin_id=$TID&okul_no=3268", ['oturum' => $OB])['durum'] === 403, 'öğretmen başka sınıfın teslimini göremez');
+dogrula(istek("/api/ogretmen.php?islem=teslim&temrin_id=$TID&okul_no=3268", ['oturum' => $OB])['durum'] === 403, 'başka sınıfın teslim projesi alınamaz');
+dogrula($post($OB, '/api/ogretmen.php', ['islem' => 'degerlendirme', 'temrin_id' => $TID, 'okul_no' => '3268', 'sonuc' => $hepsi(false)])['durum'] === 403, 'başka sınıfın teslimi yeniden değerlendirilemez');
+$post($OA, '/api/ogretmen.php', ['islem' => 'duzelt', 'temrin_id' => $TID, 'okul_no' => '3268', 'olcutler' => [['no' => 'O5', 'alinan' => 18, 'tespit' => 'Öğretmen notu']]]);
+$d = $post($OA, '/api/ogretmen.php', ['islem' => 'degerlendirme', 'temrin_id' => $TID, 'okul_no' => '3268', 'sonuc' => $hepsi(false)]);
+$ayr = istek("/api/ogretmen.php?islem=sonuc&temrin_id=$TID&okul_no=3268", ['oturum' => $OA])['json']['sonuc'];
+$o5 = array_values(array_filter($ayr['olcutler'], fn($o) => $o['no'] === 'O5'))[0];
+$o6 = array_values(array_filter($ayr['olcutler'], fn($o) => $o['no'] === 'O6'))[0];
+dogrula($ayr['degerlendiren'] === 'ogretmen' && $o5['alinan'] === 18 && $o6['alinan'] === 0, 'öğretmen doğrulaması öğrencinin sonucunun yerine geçer, elle girilen not korunur');
+dogrula(str_contains($o6['tespit'], 'btnWhile içinde while döngüsü yok'), 'CSV tespit metni sonuca yazılır');
+dogrula($post($OA, '/api/ogretmen.php', ['islem' => 'temrin_sil', 'temrin_id' => $TID])['durum'] === 409, 'teslim almış temrin silinemez');
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'uzerine_yaz' => true, 'csv' => str_replace('bilgi;temrin_no;;;;;;;3;', 'bilgi;temrin_no;;;;;;;30;', $csv)]);
+dogrula($r['durum'] === 409 && $r['json']['kod'] === 'TESLIM_VAR', 'teslim almış temrinin tanımı değiştirilemez');
+$c1 = str_replace(['bilgi;temrin_no;;;;;;;3;', '"1' . "
+" . '2' . "
+" . '3"'], ['bilgi;temrin_no;;;;;;;31;', ''], $csv);
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'csv' => str_replace("
+", "
+", $c1)]);
+dogrula($r['durum'] === 200 && count($r['json']['temrin']['hesaplanacak_ciktilar']) === 1, 'beklenen çıktısı boş soru "hesaplanacak" olarak işaretlenir');
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'cikti_kaydet', 'temrin_id' => $r['json']['temrin']['temrin_id'], 'ciktilar' => ['S2' => "1\n2\n3\n"]]);
+dogrula($r['durum'] === 200 && $r['json']['temrin']['hesaplanacak_ciktilar'] === [], 'hesaplanan çıktı kaydedilir');
+
+echo "Temrin sayfası\n";
+$s = istek("/sayfa.php?temrin_id=$TID", ['oturum' => $S1]);
+dogrula($s['durum'] === 200 && str_contains($s['govde'], 'TEMRİN SAYFASI') && str_contains($s['govde'], 'Ahmet Özdoğan') && str_contains($s['govde'], 'btnWhile içinde while döngüsü yok'), 'öğrenci kendi temrin sayfasını görür');
+dogrula(istek("/sayfa.php?temrin_id=$TID&okul_no=2045", ['oturum' => $S1])['durum'] === 403, 'öğrenci başkasının temrin sayfasını göremez');
+dogrula(istek("/sayfa.php?temrin_id=$TID&sinif=" . urlencode('11 Donanım B'), ['oturum' => $S1])['durum'] === 403, 'öğrenci sınıf sayfalarını göremez');
+dogrula(str_contains(istek("/sayfa.php?temrin_id=$TID&okul_no=3268", ['oturum' => $OA])['govde'], 'Ahmet Özdoğan'), 'öğretmen kendi sınıfındaki öğrencinin sayfasını görür');
+dogrula(istek("/sayfa.php?temrin_id=$TID&okul_no=3268", ['oturum' => $OB])['durum'] === 403, 'öğretmen başka sınıfın sayfasını göremez');
+dogrula(istek("/sayfa.php?temrin_id=$TID&sinif=" . urlencode('11 Donanım B'), ['oturum' => $OB])['durum'] === 403, 'öğretmen başka sınıfın toplu sayfasını göremez');
+dogrula(istek("/sayfa.php?temrin_id=$TID", ['oturum' => $OB])['durum'] === 404, 'öğretmenin sınıfında teslim yoksa sayfa yok (başka sınıf sızmaz)');
+dogrula(istek("/sayfa.php?temrin_id=$TID&ders_id=8", ['oturum' => $OA])['durum'] === 403, 'temrin sayfasında ders_id değiştirmek → 403');
+
 echo "Ekranlar\n";
 $e = istek('/', ['oturum' => $OA]);
 dogrula(str_contains($e['govde'], 'ogretmen.js') && str_contains($e['govde'], 'name="csrf"'), 'öğretmen ekranı');

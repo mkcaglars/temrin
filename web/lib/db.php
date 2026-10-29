@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/env.php';
 
-const SEMA_SURUMU = 1;
+const SEMA_SURUMU = 2;
 
 function db(): PDO
 {
@@ -89,6 +89,23 @@ function sema_guncelle(PDO $pdo): void
         son_giris VARCHAR(20) NOT NULL,
         PRIMARY KEY (ders_id, okul_no))$son");
     try { $pdo->exec('CREATE INDEX sonuclar_sinif ON sonuclar (ders_id, sinif)'); } catch (PDOException) { /* zaten var */ }
+    // Öğrencinin temrin çalışması: proje (C# Form Stüdyosu biçimi), cevaplar, teslim ve değerlendirme.
+    $pdo->exec("CREATE TABLE IF NOT EXISTS calismalar (
+        id $id,
+        temrin_id INT NOT NULL,
+        ders_id VARCHAR(64) NOT NULL,
+        okul_no VARCHAR(32) NOT NULL,
+        ad VARCHAR(150) NOT NULL,
+        sinif VARCHAR(50) NOT NULL DEFAULT '',
+        veri $metin NULL,
+        surum INT NOT NULL DEFAULT 0,
+        cevaplar $metin NULL,
+        baslama VARCHAR(20) NOT NULL,
+        guncellenme VARCHAR(20) NOT NULL,
+        teslim_zamani VARCHAR(20) NULL,
+        degerlendirme $metin NULL,
+        degerlendiren VARCHAR(10) NULL,
+        UNIQUE (temrin_id, okul_no))$son");
     $pdo->exec("CREATE TABLE IF NOT EXISTS kullanilan_tokenlar (jti VARCHAR(64) PRIMARY KEY, bitis INT NOT NULL)$son");
 
     $pdo->exec('DELETE FROM sema_bilgi');

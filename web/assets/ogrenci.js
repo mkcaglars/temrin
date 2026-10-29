@@ -28,16 +28,23 @@ function ciz(v) {
   return v.temrinler.map(t => {
     const kart = el('section', { class: 'kart' });
     const ust = el('div', { class: 'satir' }, el('h2', {}, `Temrin ${t.temrin_no} · ${t.baslik}`));
-    if (t.erisilebilir) ust.append(el('span', { class: 'rozet acik' }, 'Açık'));
+    if (t.erisilebilir && !t.calisma.teslim) ust.append(el('span', { class: 'rozet acik' }, 'Açık'));
     kart.append(ust);
+    const adres = `studyo/?temrin=${t.temrin_id}`;
+    if (!t.calisma.teslim) {
+      kart.append(el('p', { class: 'soluk' }, t.calisma.basladi ? 'Çalışmanız kaydedildi, henüz teslim edilmedi.' : 'Henüz başlamadınız.'),
+        el('a', { class: 'dugme', href: adres }, t.calisma.basladi ? 'Devam et' : 'Temrine başla'));
+      return kart;
+    }
     if (!t.sonuc) {
-      kart.append(el('p', { class: 'soluk' }, 'Henüz teslim edilmedi.'));
+      kart.append(el('p', { class: 'soluk' }, 'Teslim edildi, değerlendiriliyor.'), el('a', { href: adres }, 'Projeyi aç'));
       return kart;
     }
     const s = t.sonuc;
     const puan = el('div', { class: 'satir' }, el('span', { class: 'buyuk' }, s.puan ?? '–'), el('span', { class: 'soluk' }, '/ 100'));
     if (!s.kesin) puan.append(el('span', { class: 'rozet' }, 'Öğretmen puanlaması bekleniyor'));
-    kart.append(puan, el('p', { class: 'soluk' }, `Teslim: ${yerelZaman(s.teslim_zamani)}`));
+    kart.append(puan, el('p', { class: 'soluk' }, `Teslim: ${yerelZaman(s.teslim_zamani)} · `, el('a', { href: adres }, 'Projeyi aç'),
+      ' · ', el('a', { href: `sayfa.php?temrin_id=${t.temrin_id}`, target: '_blank', rel: 'noopener' }, 'Temrin sayfası')));
     if (s.olcutler.length) {
       kart.append(el('div', { class: 'kaydir' }, el('table', {},
         el('thead', {}, el('tr', {}, el('th', {}, 'Değerlendirme'), el('th', { class: 'sayi' }, 'Puanı'), el('th', { class: 'sayi' }, 'Alınan'), el('th', {}, 'Tespitler'))),

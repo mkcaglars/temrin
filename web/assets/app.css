@@ -32,3 +32,14 @@ dialog{border:none;border-radius:12px;padding:0;max-width:760px;width:calc(100% 
 dialog .kart{margin:0;border:none}
 dialog::backdrop{background:rgba(0,0,0,.35)}
 @media (max-width:600px){.icerik{padding:8px}}
+details.kalemler{margin-top:4px;font-size:12px}
+details.kalemler summary{cursor:pointer;color:var(--soluk)}
+details.kalemler ul{margin:4px 0;padding-left:18px}
+details.kalemler li.gecti{color:var(--iyi)}
+details.kalemler li.kaldi{color:var(--kotu)}
+details.kalemler li.bekliyor{color:var(--uyari)}
+pre.cevap{margin:2px 0;padding:4px 6px;background:#f3f4f6;border-radius:4px;font:12px/1.4 Consolas,monospace;white-space:pre-wrap;max-width:420px}
+.dogrulandi{color:var(--iyi);font-weight:700}
+.olcut-satiri td{background:#f8fafc;font-weight:600}
+dialog{max-height:90vh;overflow:auto}
+a.dugme{display:inline-block;margin-top:6px;background:var(--vurgu);color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none}

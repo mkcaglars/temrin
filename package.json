@@ -1,0 +1,11 @@
+{
+  "name": "temrin",
+  "private": true,
+  "description": "Temrin - derleme araçları (Monaco editör ve tarayıcı testleri)",
+  "scripts": {
+    "build": "bash build.sh"
+  },
+  "devDependencies": {
+    "monaco-editor": "0.52.2"
+  }
+}

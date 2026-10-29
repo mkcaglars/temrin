@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <!--
+    Tarayıcıda çalışan motor: c-lesson'un motoru (derleyici + WinForms çalıştırıcı) ve Temrin test motoru.
+    c-lesson'un Engine kaynakları olduğu gibi derlenir; Temrin fonksiyonları aynı Interop sınıfına (partial) eklenir.
+    Böylece c-lesson'un JavaScript dosyaları (engine.js, ide.js...) değişmeden çalışır.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>CLesson.Engine</AssemblyName>
+    <RootNamespace>CLesson.Engine</RootNamespace>
+    <PublishTrimmed>false</PublishTrimmed>
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <WasmIcuDataFileName>icudt_no_CJK.dat</WasmIcuDataFileName>
+    <SatelliteResourceLanguages>tr</SatelliteResourceLanguages>
+    <WasmEnableWebcil>true</WasmEnableWebcil>
+    <CompressionEnabled>true</CompressionEnabled>
+    <WasmFingerprintAssets>false</WasmFingerprintAssets>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\c-lesson\src\Engine\*.cs" LinkBase="CLesson" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\c-lesson\src\Compiler\Compiler.csproj" />
+    <ProjectReference Include="..\..\c-lesson\src\MiniWinForms\MiniWinForms.csproj" />
+    <ProjectReference Include="..\Degerlendirici\Degerlendirici.csproj" />
+  </ItemGroup>
+</Project>

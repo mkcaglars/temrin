@@ -28,13 +28,19 @@ try {
     $sonuclar = [];
     foreach ($st as $r) $sonuclar[(int)$r['temrin_id']] = $r;
 
+    $st = $pdo->prepare('SELECT temrin_id, teslim_zamani FROM calismalar WHERE ders_id = ? AND okul_no = ?');
+    $st->execute([$k['ders_id'], $k['okul_no']]);
+    $calismalar = [];
+    foreach ($st as $c) $calismalar[(int)$c['temrin_id']] = $c;
+
     $liste = [];
     foreach ($temrinler as $t) {
         [$izin, $neden] = temrin_erisimi($t['erisim_acik'] === null ? null : $t);
         $r = $sonuclar[(int)$t['id']] ?? null;
         if (!$izin && $r === null) continue; // kapalı ve teslim edilmemiş temrin gösterilmez
         $o = ['temrin_id' => (int)$t['id'], 'temrin_no' => (int)$t['temrin_no'], 'baslik' => $t['baslik'],
-              'erisilebilir' => $izin, 'neden' => $neden, 'sonuc' => null];
+              'erisilebilir' => $izin, 'neden' => $neden, 'sonuc' => null,
+              'calisma' => isset($calismalar[(int)$t['id']]) ? ['basladi' => true, 'teslim' => $calismalar[(int)$t['id']]['teslim_zamani'] !== null] : ['basladi' => false, 'teslim' => false]];
         if ($r !== null) {
             $s = sonuc_ozeti($r, $t, true);
             $o['sonuc'] = ['puan' => $s['puan'], 'kesin' => $s['kesin'], 'teslim_zamani' => $s['teslim_zamani'], 'olcutler' => $s['olcutler']];
