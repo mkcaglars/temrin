@@ -17,7 +17,7 @@ const gecici = fs.mkdtempSync(path.join(os.tmpdir(), 'temrin-tarayici-'));
 const anahtar = crypto.randomBytes(32).toString('hex');
 fs.writeFileSync(path.join(gecici, '.env'), `PORTAL_SSO_ANAHTAR=${anahtar}\nDB_DSN=sqlite:${gecici}/t.sqlite\nSAAT_DILIMI=Europe/Istanbul\n`);
 const PORT = 18500 + Math.floor(Math.random() * 400);
-const ADRES = `http://localhost:${PORT}`;
+const ADRES = `http://127.0.0.1:${PORT}`;
 const sunucu = spawn('php', ['-d', `session.save_path=${gecici}`, '-S', `127.0.0.1:${PORT}`, '-t', DIST],
   { env: { ...process.env, TEMRIN_ENV_DOSYASI: path.join(gecici, '.env') }, stdio: 'ignore' });
 

@@ -1,0 +1,86 @@
+# Her "main" dalına gönderimde: testleri çalıştırır, siteyi derler ve (ayarlıysa) Hostinger'a FTP ile yükler.
+# Derleme GitHub'ın sunucusunda yapılır; kendi bilgisayarınıza .NET, Node.js kurmanız gerekmez.
+#
+# Gerekli depo ayarları (Settings > Secrets and variables > Actions):
+#   Secrets:   FTP_SERVER, FTP_USERNAME, FTP_PASSWORD
+#   Variables: FTP_DIR  (ör. "public_html/" veya alt alan adı için "domains/temrin.okul.com/public_html/")
+# FTP ayarları yoksa testler ve derleme yine çalışır, yalnızca yükleme atlanır.
+# .env dosyası public_html'in dışında durduğu için yükleme ona dokunmaz.
+name: Derle ve Yayınla
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: yayinla-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true   # c-lesson (C# Form Stüdyosu)
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, sqlite3, mbstring, curl
+          coverage: none
+
+      - name: Node paketleri
+        run: npm ci --no-audit --no-fund
+
+      - name: Test motoru testleri (C#)
+        run: dotnet test motor/Testler/Testler.csproj --nologo
+
+      - name: Sunucu testleri (PHP)
+        run: php tests/sunucu_testi.php
+
+      - name: Siteyi derle
+        run: ./build.sh
+
+      - name: Tarayıcı testleri (Playwright)
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.63.0
+          npx playwright install --with-deps chromium
+          node tests/tarayici_testi.js
+
+      - name: Derlenmiş siteyi sakla
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: dist/
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Hostinger'a yükle (FTP)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.FTP_SERVER != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: ${{ vars.FTP_DIR || 'public_html/' }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .env

@@ -31,7 +31,28 @@ Editör, form tasarımcısı, derleyici ve WinForms çalıştırıcısı [C# For
 
 ## Derleme ve kurulum (Hostinger)
 
-Gerekenler (yalnızca derleyen bilgisayarda): .NET 10 SDK, Node.js 20+, git. Sunucuda yalnızca PHP 8.1+ ve MySQL gerekir.
+Sunucuda yalnızca PHP 8.1+ ve MySQL gerekir. Site derlenerek `dist/` klasörü (~60 MB: PHP dosyaları, editör, motor `studyo/_framework`, Monaco editör) üretilir ve bu klasörün **içeriği** sunucuya yüklenir.
+
+### A) GitHub Actions ile otomatik (önerilir)
+
+Kendi bilgisayarınıza hiçbir şey kurmanız gerekmez. `main` dalına her gönderimde GitHub'ın sunucusu (`.github/workflows/yayinla.yml`):
+1. c-lesson alt modülüyle birlikte depoyu indirir.
+2. Test motoru, sunucu ve tarayıcı testlerini çalıştırır. Bir test kalırsa yükleme yapılmaz.
+3. `./build.sh` ile siteyi derler ve FTP ile Hostinger'a yükler.
+
+İlk kurulum:
+1. hPanel > **Dosyalar > FTP Hesapları** bölümünden FTP bilgilerini alın.
+2. GitHub'da Temrin deposunun **Settings > Secrets and variables > Actions** bölümüne şunları ekleyin:
+   - Secrets: `FTP_SERVER` (ör. `ftp.okulunuz.k12.tr` veya IP), `FTP_USERNAME`, `FTP_PASSWORD`
+   - Variables: `FTP_DIR`. FTP hesabının kök klasörüne göre sitenin klasörü, sonunda `/` olsun (ör. `domains/temrin.okulunuz.k12.tr/public_html/`). c-lesson'dan **farklı** bir klasör olmalı.
+3. `.env.example` dosyasını `.env` adıyla bu klasörün **yanına** (bir üst klasöre) koyup doldurun. Yükleme `.env`'ye dokunmaz.
+4. `main` dalına bir değişiklik gönderin ya da **Actions** sekmesinden **Derle ve Yayınla** iş akışını elle çalıştırın.
+
+FTP ayarları girilmemişse testler ve derleme yine çalışır, yalnızca yükleme atlanır. Her derlemenin çıktısı Actions sayfasında "site" adlı dosya olarak 7 gün indirilebilir.
+
+### B) Kendi bilgisayarınızda
+
+Gerekenler: .NET 10 SDK, Node.js 20+, git.
 
 ```bash
 git submodule update --init
@@ -41,20 +62,23 @@ git submodule update --init
 ./build.sh
 ```
 
-1. `build.sh` siteyi `dist/` klasörüne üretir (~60 MB). İçinde PHP dosyaları, editör, motor (`studyo/_framework`) ve Monaco editör bulunur.
-2. `dist/` klasörünün **içeriğini** `public_html` (ya da alt alan adının klasörü) içine yükleyin.
-3. `.env.example` dosyasını `.env` adıyla `public_html`'in **yanına** (bir üst klasöre) kopyalayıp doldurun.
-4. `PORTAL_SSO_ANAHTAR` portaldaki `TEMRIN_ANAHTAR` ile aynı olmalı. Portaldaki `TEMRIN_ADRES` bu sitenin adresi olmalı (sonda `/` yok).
-5. Site **HTTPS** üzerinden açılmalı (oturum çerezi `Secure`).
-6. Tablolar ilk istekte otomatik oluşur.
+Oluşan `dist/` klasörünün **içindekileri** (gizli `.htaccess` dosyaları dahil) hPanel Dosya Yöneticisi veya FTP ile `public_html` klasörüne yükleyin. `.env` dosyasını yukarıdaki gibi `public_html`'in yanına koyun.
 
-c-lesson'u güncellemek için:
+### Her iki yolda
+
+- `PORTAL_SSO_ANAHTAR` portaldaki `TEMRIN_ANAHTAR` ile aynı olmalı. Portaldaki `TEMRIN_ADRES` bu sitenin adresi olmalı (sonda `/` yok).
+- Site **HTTPS** üzerinden açılmalı (oturum çerezi `Secure`).
+- Tablolar ilk istekte otomatik oluşur.
+
+### c-lesson'daki değişiklikleri almak
+
+c-lesson'da yapılan düzeltmeler Temrin'e kendiliğinden gelmez; alt modülün hangi c-lesson sürümünü kullandığı Temrin deposunda kayıtlıdır. Güncellemek için:
 
 ```bash
 git submodule update --remote c-lesson
 ```
 
-Ardından `./build.sh` ile yeniden derleyip `dist/` klasörünü yükleyin.
+Ardından değişikliği Temrin'e commit edip `main`'e gönderin; Actions yeniden derleyip yükler (ya da B yolunda `./build.sh` ile yeniden derleyin). Testler, c-lesson'daki bir değişikliğin Temrin'i bozup bozmadığını yüklemeden önce yakalar.
 
 ## Akış
 
