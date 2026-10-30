@@ -1,0 +1,45 @@
+:root{--zemin:#f4f6fa;--kart:#fff;--yazi:#1d2433;--soluk:#667085;--cizgi:#e3e7ef;--vurgu:#2563eb;--uyari:#b45309;--uyari-zemin:#fef3c7;--iyi:#15803d;--kotu:#b91c1c}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.5 "Segoe UI",system-ui,sans-serif;background:var(--zemin);color:var(--yazi)}
+a{color:var(--vurgu)}
+.ust{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;background:var(--kart);border-bottom:1px solid var(--cizgi)}
+.kim a{margin-left:8px}
+.icerik{max-width:1200px;margin:0 auto;padding:16px}
+.soluk{color:var(--soluk)}
+.kart{background:var(--kart);border:1px solid var(--cizgi);border-radius:10px;padding:16px;margin-bottom:16px}
+.kart h2{font-size:16px;margin:0 0 8px}
+.satir{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.buyuk{font-size:24px;font-weight:600}
+.rozet{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;background:var(--uyari-zemin);color:var(--uyari);white-space:nowrap}
+.rozet.acik{background:#dcfce7;color:var(--iyi)}
+.rozet.kapali{background:#eef1f6;color:var(--soluk)}
+.kaydir{overflow-x:auto}
+table{border-collapse:collapse;width:100%;background:var(--kart)}
+th,td{border:1px solid var(--cizgi);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:#f8fafc;font-weight:600}
+td.sayi,th.sayi{text-align:center;white-space:nowrap}
+tfoot td{font-weight:600;background:#f8fafc}
+button,select,input{font:inherit}
+button{border:1px solid var(--cizgi);background:var(--kart);border-radius:6px;padding:4px 10px;cursor:pointer}
+button.ana{background:var(--vurgu);border-color:var(--vurgu);color:#fff}
+button.hucre{border:none;background:none;padding:0;color:var(--vurgu);text-decoration:underline;cursor:pointer}
+input[type=number]{width:64px}
+input[type=text]{width:100%}
+.hata{color:var(--kotu)}
+.sekmeler{display:flex;gap:4px;margin-bottom:12px}
+.sekmeler button[aria-selected=true]{background:var(--vurgu);color:#fff;border-color:var(--vurgu)}
+dialog{border:none;border-radius:12px;padding:0;max-width:760px;width:calc(100% - 32px)}
+dialog .kart{margin:0;border:none}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+@media (max-width:600px){.icerik{padding:8px}}
+details.kalemler{margin-top:4px;font-size:12px}
+details.kalemler summary{cursor:pointer;color:var(--soluk)}
+details.kalemler ul{margin:4px 0;padding-left:18px}
+details.kalemler li.gecti{color:var(--iyi)}
+details.kalemler li.kaldi{color:var(--kotu)}
+details.kalemler li.bekliyor{color:var(--uyari)}
+pre.cevap{margin:2px 0;padding:4px 6px;background:#f3f4f6;border-radius:4px;font:12px/1.4 Consolas,monospace;white-space:pre-wrap;max-width:420px}
+.dogrulandi{color:var(--iyi);font-weight:700}
+.olcut-satiri td{background:#f8fafc;font-weight:600}
+dialog{max-height:90vh;overflow:auto}
+a.dugme{display:inline-block;margin-top:6px;background:var(--vurgu);color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none}
