@@ -17,7 +17,7 @@ $alt = $ogretmen ? 'Öğretmen' : "{$e($k['okul_no'])} · {$e($k['sinif'])}";
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
-header("Content-Security-Policy: default-src 'self'; worker-src 'self' blob:; img-src 'self' data:; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'; frame-ancestors 'none'");
+header("Content-Security-Policy: default-src 'self'; worker-src 'self' blob:; img-src 'self' data:; style-src 'self'; script-src 'self' 'wasm-unsafe-eval'");  // frame-ancestors .htaccess'te: yalnızca portal çerçeveleyebilir
 ?>
 <!doctype html>
 <html lang="tr">
