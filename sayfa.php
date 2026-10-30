@@ -55,7 +55,7 @@ $ogretmenAdi = $k['rol'] === 'ogretmen' ? $k['ad'] : ($b['ogretmen'] ?? '');
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
-header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'");
+header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'");  // frame-ancestors .htaccess'te: yalnızca portal çerçeveleyebilir
 ?>
 <!doctype html>
 <html lang="tr">
