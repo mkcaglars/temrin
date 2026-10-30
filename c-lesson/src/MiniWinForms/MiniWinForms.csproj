@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Tarayıcıda çalışan, System.Windows.Forms ile aynı API'ye sahip küçük WinForms taklidi. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>MiniWinForms</AssemblyName>
+    <RootNamespace>System.Windows.Forms</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CA1416;CS0067</NoWarn>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

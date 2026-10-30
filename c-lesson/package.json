@@ -1,0 +1,13 @@
+{
+  "name": "csharp-winforms-ders",
+  "private": true,
+  "description": "C# WinForms ders ortamı - derleme araçları",
+  "scripts": {
+    "build": "bash build.sh"
+  },
+  "devDependencies": {
+    "monaco-editor": "0.52.2",
+    "playwright-core": "^1.48.0"
+  },
+  "type": "module"
+}

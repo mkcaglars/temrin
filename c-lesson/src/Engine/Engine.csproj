@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <!-- Tarayıcıda çalışan .NET motoru: derleyici + WinForms çalıştırıcı. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>CLesson.Engine</AssemblyName>
+    <RootNamespace>CLesson.Engine</RootNamespace>
+    <!-- Öğrenci kodu framework'ün herhangi bir yerini kullanabileceği için budama kapalı. -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <!-- Hata mesajlarının (FormatException vb.) metinleri gerçek mesaj olarak kalsın. -->
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <WasmIcuDataFileName>icudt_no_CJK.dat</WasmIcuDataFileName>
+    <SatelliteResourceLanguages>tr</SatelliteResourceLanguages>
+    <WasmEnableWebcil>true</WasmEnableWebcil>
+    <CompressionEnabled>true</CompressionEnabled>
+    <WasmFingerprintAssets>false</WasmFingerprintAssets>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Compiler\Compiler.csproj" />
+    <ProjectReference Include="..\MiniWinForms\MiniWinForms.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Yayına hazır siteyi dist/ klasörüne üretir (Hostinger'da dist/ içeriği public_html'e yüklenir).
-#   Gerekenler: .NET 10 SDK, Node.js (Monaco editör için npm), git (c-lesson alt modülü)
-#   İlk kez: git submodule update --init
+#   Gerekenler: .NET 10 SDK, Node.js (Monaco editör için npm)
+#   c-lesson (C# Form Stüdyosu) c-lesson/ klasöründedir; güncellemek için: araclar/c-lesson-guncelle.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -10,7 +10,7 @@ STUDYO="$OUT/studyo"
 CLE=c-lesson
 
 if [ ! -f "$CLE/src/Engine/Interop.cs" ]; then
-  echo "c-lesson alt modülü yok. Önce: git submodule update --init" >&2
+  echo "c-lesson/ klasörü eksik. Almak için: ./araclar/c-lesson-guncelle.sh" >&2
   exit 1
 fi
 

@@ -1,0 +1,63 @@
+# Her "main" dalına gönderimde: testleri çalıştırır, siteyi derler ve (ayarlıysa) Hostinger'a FTP ile yükler.
+#
+# Gerekli depo ayarları (Settings > Secrets and variables > Actions):
+#   Secrets:   FTP_SERVER, FTP_USERNAME, FTP_PASSWORD
+#   Variables: FTP_DIR  (ör. "public_html/" veya alt alan adı için "domains/csharp.okul.com/public_html/")
+name: Derle ve Yayınla
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: yayinla-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Node paketleri
+        run: npm ci --no-audit --no-fund
+
+      - name: Testler
+        run: dotnet test tests/Tests/Tests.csproj --nologo
+
+      - name: Siteyi derle
+        run: ./build.sh
+
+      - name: Derlenmiş siteyi sakla
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: dist/
+          retention-days: 7
+
+      - name: Hostinger'a yükle (FTP)
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.FTP_SERVER != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: ${{ vars.FTP_DIR || 'public_html/' }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            api/config.php

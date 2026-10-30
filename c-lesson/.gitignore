@@ -1,0 +1,11 @@
+bin/
+obj/
+dist/
+node_modules/
+*.user
+.vs/
+web/api/config.php
+data/
+*.sqlite
+build/
+yayin/

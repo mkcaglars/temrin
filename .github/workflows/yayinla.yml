@@ -27,8 +27,6 @@ jobs:
       DOTNET_NOLOGO: 1
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true   # c-lesson (C# Form Stüdyosu)
 
       - uses: actions/setup-dotnet@v4
         with:

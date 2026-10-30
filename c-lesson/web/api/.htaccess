@@ -1,0 +1,8 @@
+# lib klasörü ve ayar dosyası doğrudan indirilemesin
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^lib/ - [F,L]
+</IfModule>
+<FilesMatch "^(config\.php|config\.example\.php)$">
+  Require all denied
+</FilesMatch>
