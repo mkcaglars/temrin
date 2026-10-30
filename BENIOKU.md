@@ -4,7 +4,7 @@ Mesleki eğitimde temrin uygulamaları için web uygulaması. Öğretmen temrini
 
 Öğrenci ve öğretmen okul portalından tek tıkla (SSO) girer. Puanlar Temrin'in kendi veritabanında tutulur; **portala puan veren bir API yoktur.**
 
-Editör, form tasarımcısı, derleyici ve WinForms çalıştırıcısı [C# Form Stüdyosu (c-lesson)](https://github.com/mkcaglars/c-lesson) projesinden gelir. c-lesson bu depoya **git alt modülü** olarak bağlıdır; c-lesson'da yapılan geliştirmeler alt modül güncellenip site yeniden derlenince Temrin'e de gelir.
+Editör, form tasarımcısı, derleyici ve WinForms çalıştırıcısı [C# Form Stüdyosu (c-lesson)](https://github.com/mkcaglars/c-lesson) projesinden gelir. c-lesson'un dosyaları `c-lesson/` klasöründe bu depoya dahildir (alt modül değil; Hostinger alt modül indirmez). Kullanılan sürüm `c-lesson/SURUM` dosyasında yazılıdır. c-lesson'da yapılan geliştirmeler `araclar/c-lesson-guncelle.sh` ile alınır.
 
 ## Klasörler
 
@@ -23,7 +23,8 @@ Editör, form tasarımcısı, derleyici ve WinForms çalıştırıcısı [C# For
 | `motor/Degerlendirici/` | Test motoru (C#): CSV kontrollerini öğrenci projesine uygular |
 | `motor/Motor/` | Tarayıcıda çalışan motor: c-lesson motoru + Temrin test motoru (.NET WebAssembly) |
 | `motor/Testler/` | Test motorunun birim testleri |
-| `c-lesson/` | C# Form Stüdyosu (alt modül) |
+| `c-lesson/` | C# Form Stüdyosu kopyası (sürümü `c-lesson/SURUM`; elle değiştirmeyin, güncelleme betiğiyle alın) |
+| `araclar/c-lesson-guncelle.sh` | c-lesson'un yeni sürümünü GitHub'dan alıp `c-lesson/` klasörüne kopyalar |
 | `sablon/` | Temrin CSV şablonu, Temrin 3 örneği ve [biçim açıklaması](sablon/README.md) |
 | `tests/` | Sunucu testi (PHP) ve uçtan uca tarayıcı testi (Playwright) |
 | `araclar/portal-ornek.php` | Deneme için giriş bağlantısı üretir (portaldaki `temrin-git.php` ile aynı token) |
@@ -42,7 +43,7 @@ Hostinger depoyu olduğu gibi çeker, derleme yapamaz. Bu yüzden derlenmiş sit
 - **`yayin`:** Yalnızca derlenmiş site (`dist/` içeriği). Bu dala elle dokunulmaz.
 
 `main` dalına her gönderimde GitHub Actions (`.github/workflows/yayinla.yml`):
-1. Depoyu c-lesson alt modülüyle birlikte indirir.
+1. Depoyu indirir (c-lesson dahil).
 2. Test motoru, sunucu ve tarayıcı testlerini çalıştırır. Bir test kalırsa yayın yapılmaz.
 3. `./build.sh` ile siteyi derler ve sonucu `yayin` dalına gönderir.
 
@@ -63,11 +64,7 @@ Her derlemenin çıktısı Actions sayfasında "site" adlı dosya olarak 7 gün 
 
 ### B) Kendi bilgisayarınızda
 
-Gerekenler: .NET 10 SDK, Node.js 20+, git.
-
-```bash
-git submodule update --init
-```
+Gerekenler: .NET 10 SDK, Node.js 20+.
 
 ```bash
 ./build.sh
@@ -83,11 +80,13 @@ Oluşan `dist/` klasörünün **içindekileri** (gizli `.htaccess` dosyaları da
 
 ### c-lesson'daki değişiklikleri almak
 
-c-lesson'da yapılan düzeltmeler Temrin'e kendiliğinden gelmez; alt modülün hangi c-lesson sürümünü kullandığı Temrin deposunda kayıtlıdır. Güncellemek için:
+c-lesson'da yapılan düzeltmeler Temrin'e kendiliğinden gelmez; Temrin, `c-lesson/` klasöründeki kopyayı kullanır (sürümü `c-lesson/SURUM`). Güncellemek için:
 
 ```bash
-git submodule update --remote c-lesson
+./araclar/c-lesson-guncelle.sh
 ```
+
+Betik c-lesson'un `main` dalının son hâlini alır; belirli bir sürüm için commit numarası verilebilir (`./araclar/c-lesson-guncelle.sh c26ae39`). `c-lesson/` içindeki dosyaları elle değiştirmeyin; bir sonraki güncellemede silinir. Düzeltmeyi c-lesson deposunda yapıp buraya güncelleme betiğiyle alın.
 
 Ardından değişikliği Temrin'e commit edip `main`'e gönderin; Actions test edip derler, `yayin` dalını günceller, Hostinger çeker (ya da B yolunda `./build.sh` ile yeniden derleyin). Testler, c-lesson'daki bir değişikliğin Temrin'i bozup bozmadığını yüklemeden önce yakalar.
 

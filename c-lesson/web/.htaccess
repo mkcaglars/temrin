@@ -1,0 +1,30 @@
+# C# WinForms Ders Ortamı — Apache / Hostinger (LiteSpeed) ayarları
+
+DirectoryIndex index.html index.php
+
+# WebAssembly ve .NET dosya türleri
+AddType application/wasm .wasm
+AddType application/octet-stream .dat .blat .dll .pdb
+AddType application/javascript .js .mjs
+AddType application/json .json
+
+# Motor dosyaları (.wasm/.dll) tarayıcıda .gz sürümlerinden açılır (engine.js); burada ek ayar gerekmez.
+# .gz dosyaları sunucu tarafından tekrar sıkıştırılmasın / çözülmesin:
+AddType application/gzip .gz
+<IfModule mod_mime.c>
+  RemoveEncoding .gz
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Her güncellemeden sonra tarayıcılar yeni dosyaları alsın (değişmeyenler 304 ile hızlı gelir).
+  <FilesMatch "\.(html|php|js|json|wasm|dat|gz|css)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "same-origin"
+</IfModule>
+
+# Gizli dosyalar
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>

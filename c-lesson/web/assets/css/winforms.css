@@ -1,0 +1,333 @@
+/* WinForms kontrollerinin Windows 10/11 görünümüne yakın çizimi. */
+
+.wf-desktop {
+  position: relative;
+  overflow: hidden;
+  background: #2b5797 linear-gradient(135deg, #1e3c72 0%, #2a5298 60%, #3a6db5 100%);
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-size: 9pt;
+  color: #000;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.wf-windows { position: absolute; inset: 0 0 34px 0; overflow: hidden; }
+
+.wf-taskbar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 34px;
+  background: rgba(20, 24, 33, 0.92); display: flex; gap: 4px; padding: 3px 6px; box-sizing: border-box;
+}
+.wf-task {
+  max-width: 180px; min-width: 90px; padding: 0 10px; border: 0; border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08); color: #fff; font: 9pt "Segoe UI", Tahoma, sans-serif;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; border-bottom: 2px solid transparent;
+}
+.wf-task:hover { background: rgba(255, 255, 255, 0.16); }
+.wf-task.active { background: rgba(255, 255, 255, 0.2); border-bottom-color: #60cdff; }
+
+.wf-modal-shade { position: absolute; inset: 0; display: none; background: rgba(0, 0, 0, 0.12); }
+.wf-modal-shade.active { display: block; }
+
+/* ---------------- Pencere ---------------- */
+
+.wf-window {
+  position: absolute; display: inline-flex; flex-direction: column;
+  background: #fff; border: 1px solid #6b7a90;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  min-width: 120px;
+}
+.wf-window.wf-active { border-color: #2b6cb0; }
+.wf-titlebar {
+  height: 31px; flex: 0 0 31px; display: flex; align-items: center; background: #fff; color: #888;
+  padding-left: 8px; box-sizing: border-box; cursor: default; touch-action: none;
+}
+.wf-window.wf-active > .wf-titlebar { color: #000; }
+.wf-icon {
+  width: 16px; height: 16px; margin-right: 8px; flex: 0 0 16px;
+  background: linear-gradient(135deg, #5aa0e6, #2f6fbd); border-radius: 3px;
+}
+.wf-title { flex: 1; font-size: 9pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wf-caption-buttons { display: flex; height: 100%; }
+.wf-cap {
+  width: 46px; height: 100%; border: 0; background: transparent; color: inherit;
+  font: 10pt "Segoe UI Symbol", "Segoe UI", sans-serif; cursor: default;
+}
+.wf-cap:hover { background: #e5e5e5; }
+.wf-cap.wf-close:hover { background: #e81123; color: #fff; }
+.wf-client {
+  position: relative; overflow: hidden; background: #f0f0f0; color: #000;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif; font-size: 9pt;
+}
+.wf-grip { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; cursor: nwse-resize; touch-action: none; }
+.wf-window.wf-fixed > .wf-grip { display: none; }
+.wf-window.wf-maximized { border-width: 0; box-shadow: none; }
+.wf-window.wf-maximized > .wf-grip { display: none; }
+.wf-window.wf-minimized { display: none; }
+.wf-window.wf-noborder { border: 0; }
+.wf-window.wf-noborder > .wf-titlebar, .wf-window.wf-noborder > .wf-grip { display: none; }
+.wf-window.wf-toolwindow > .wf-titlebar { height: 24px; flex-basis: 24px; }
+.wf-window.wf-toolwindow .wf-icon, .wf-window.wf-toolwindow .wf-min, .wf-window.wf-toolwindow .wf-max { display: none; }
+.wf-window.wf-toolwindow .wf-cap { width: 30px; }
+.wf-window.wf-embedded { position: absolute; box-shadow: none; border: 0; }
+.wf-window.wf-embedded > .wf-titlebar, .wf-window.wf-embedded > .wf-grip { display: none; }
+
+/* ---------------- Ortak ---------------- */
+
+.wf-ctl {
+  position: absolute; box-sizing: border-box; margin: 0;
+  font: inherit; color: inherit; overflow: hidden;
+}
+.wf-hidden { display: none !important; }
+.wf-disabled { color: #a0a0a0 !important; pointer-events: none; }
+.wf-disabled * { color: #a0a0a0 !important; }
+.wf-border-single { border: 1px solid #646464; }
+.wf-border-3d { border: 1px solid #7a7a7a; box-shadow: inset 1px 1px 0 #a0a0a0; }
+
+/* ---------------- Button ---------------- */
+
+.wf-button {
+  display: flex; align-items: center; justify-content: center; padding: 0 2px; text-align: center;
+  background: #e1e1e1; border: 1px solid #adadad; border-radius: 0; cursor: default;
+  font: inherit; color: inherit; white-space: pre-wrap; line-height: 1.15;
+}
+.wf-button > span { pointer-events: none; }
+.wf-button:hover { background: #e5f1fb; border-color: #0078d7; }
+.wf-button:active { background: #cce4f7; border-color: #005499; }
+.wf-button:focus-visible, .wf-button:focus { outline: none; border-color: #0078d7; box-shadow: inset 0 0 0 1px #0078d7; }
+.wf-button.wf-has-back:hover { filter: brightness(1.08); }
+.wf-button.wf-flat { border: 1px solid #000; }
+.wf-button.wf-with-image { background-repeat: no-repeat; background-position: center; }
+.wf-button:disabled { color: #a0a0a0; background: #ccc; border-color: #bfbfbf; }
+
+/* ---------------- Label ---------------- */
+
+.wf-label { display: flex; align-items: flex-start; justify-content: flex-start; white-space: pre-wrap; overflow: hidden; line-height: 1.25; }
+.wf-label.wf-autosize { white-space: pre; overflow: visible; }
+.wf-label > span { display: block; }
+.wf-link > span { color: #0000ff; text-decoration: underline; cursor: pointer; }
+
+/* ---------------- CheckBox / RadioButton ---------------- */
+
+.wf-check { display: flex; align-items: center; gap: 4px; white-space: pre; cursor: default; }
+.wf-check input { margin: 0 0 0 1px; width: 13px; height: 13px; flex: 0 0 13px; accent-color: #0078d7; }
+.wf-check > span { overflow: hidden; text-overflow: clip; }
+
+/* ---------------- TextBox ---------------- */
+
+.wf-textbox { background: #fff; border: 1px solid #7a7a7a; }
+.wf-textbox:focus-within { border-color: #0078d7; }
+.wf-textbox.wf-border-none { border: 0; box-shadow: none; }
+.wf-textbox input, .wf-textbox textarea {
+  position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+  border: 0; outline: none; padding: 1px 3px; margin: 0; background: transparent;
+  font: inherit; color: inherit; resize: none; user-select: text; -webkit-user-select: text;
+}
+.wf-textbox textarea { overflow: hidden; line-height: 1.25; }
+.wf-textbox.wf-readonly { background: #f0f0f0; }
+
+/* ---------------- ComboBox ---------------- */
+
+.wf-combo { overflow: visible; background: #fff; border: 1px solid #7a7a7a; display: flex; }
+.wf-combo:focus-within { border-color: #0078d7; }
+.wf-combo input {
+  flex: 1; min-width: 0; border: 0; outline: none; padding: 1px 3px; font: inherit; color: inherit; background: transparent;
+  user-select: text; -webkit-user-select: text;
+}
+.wf-combo.wf-dropdownlist { background: #e1e1e1; border-color: #adadad; }
+.wf-combo.wf-dropdownlist input { cursor: default; user-select: none; caret-color: transparent; }
+.wf-combo > button { width: 17px; border: 0; background: transparent; font-size: 8pt; color: #333; padding: 0; cursor: default; }
+.wf-combo > button:hover { background: #e5f1fb; }
+.wf-combo-list {
+  display: none; position: absolute; left: -1px; right: -1px; top: 100%; max-height: 136px; overflow-y: auto;
+  background: #fff; border: 1px solid #646464; z-index: 10; box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+}
+.wf-combo.open .wf-combo-list { display: block; }
+.wf-combo-item { padding: 1px 3px; white-space: nowrap; line-height: 17px; }
+.wf-combo-item:hover, .wf-combo-item.selected { background: #0078d7; color: #fff; }
+
+/* ---------------- ListBox ---------------- */
+
+.wf-listbox { background: #fff; border: 1px solid #828790; overflow-y: auto; outline: none; }
+.wf-listbox.wf-border-none { border: 0; }
+.wf-list-item { padding: 0 2px; line-height: 15px; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+.wf-list-item.selected { background: #0078d7; color: #fff; }
+.wf-listbox:not(:focus) .wf-list-item.selected { background: #cce8ff; color: #000; }
+.wf-checkedlist .wf-list-item { line-height: 17px; }
+.wf-list-item input { margin: 0; width: 13px; height: 13px; }
+
+/* ---------------- GroupBox / Panel ---------------- */
+
+.wf-groupbox { overflow: visible; }
+.wf-group-frame { position: absolute; left: 0; right: 0; bottom: 0; top: 0.65em; border: 1px solid #dcdcdc; border-radius: 2px; pointer-events: none; }
+.wf-group-title { position: absolute; left: 6px; top: 0; padding: 0 2px; background: inherit; line-height: 1.25; white-space: pre; }
+.wf-groupbox { background: transparent; }
+.wf-groupbox > .wf-group-title { background: #f0f0f0; }
+.wf-groupbox.wf-has-back > .wf-group-title { background: transparent; }
+.wf-panel { background: transparent; }
+
+/* ---------------- PictureBox ---------------- */
+
+.wf-picture img { width: 100%; height: 100%; display: block; }
+
+/* ---------------- NumericUpDown ---------------- */
+
+.wf-numeric { background: #fff; border: 1px solid #7a7a7a; }
+.wf-numeric input {
+  position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border: 0; outline: none;
+  padding: 1px 2px 1px 3px; font: inherit; color: inherit; background: transparent; user-select: text; -webkit-user-select: text;
+}
+
+/* ---------------- ProgressBar ---------------- */
+
+.wf-progress { background: #e6e6e6; border: 1px solid #bcbcbc; }
+.wf-progress-bar { height: 100%; width: 0; background: #06b025; transition: width 0.15s; }
+.wf-progress.wf-marquee .wf-progress-bar { animation: wf-marquee 1.6s linear infinite; }
+@keyframes wf-marquee { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+
+/* ---------------- TrackBar / DateTimePicker ---------------- */
+
+.wf-trackbar input { width: 100%; margin: 4px 0 0 0; accent-color: #0078d7; }
+.wf-trackbar.wf-vertical input { writing-mode: vertical-lr; direction: rtl; width: auto; height: 100%; }
+.wf-datetime { background: #fff; border: 1px solid #7a7a7a; }
+.wf-datetime input { position: absolute; inset: 0; border: 0; outline: none; font: inherit; color: inherit; background: transparent; padding: 0 3px; }
+
+/* ---------------- İletişim kutusu ---------------- */
+
+.wf-dialog { min-width: 260px; max-width: 520px; background: #fff; }
+.wf-dialog-body { display: flex; gap: 12px; padding: 20px 22px 18px; align-items: flex-start; flex-wrap: wrap; }
+.wf-dialog-icon { font-size: 26px; line-height: 1; }
+.wf-dialog-text { flex: 1; white-space: pre-wrap; font-size: 9pt; min-width: 160px; user-select: text; -webkit-user-select: text; }
+.wf-dialog-input { flex-basis: 100%; padding: 3px; border: 1px solid #7a7a7a; font: 9pt "Segoe UI", sans-serif; outline: none; }
+.wf-dialog-input:focus { border-color: #0078d7; }
+.wf-dialog-buttons { background: #f0f0f0; padding: 11px 12px; display: flex; justify-content: flex-end; gap: 8px; }
+.wf-dialog-button { position: static; min-width: 75px; height: 23px; }
+
+/* ---------------- ToolStrip / MenuStrip / StatusStrip ---------------- */
+
+.wf-strip { display: flex; align-items: stretch; overflow: visible; background: #f5f6f7; padding: 0 2px; z-index: 5; }
+.wf-menustrip { background: #f5f6f7; padding: 2px 2px; gap: 0; }
+.wf-toolstrip { background: linear-gradient(#fafbfc, #eef0f3); border-bottom: 1px solid #dadde3; padding: 1px 2px 1px 8px; gap: 1px; }
+.wf-toolstrip .wf-grip-dots { position: absolute; left: 2px; top: 4px; bottom: 4px; width: 3px;
+  background: radial-gradient(circle, #9aa1ad 1px, transparent 1.2px) 0 0 / 3px 4px; }
+.wf-toolstrip.wf-nogrip { padding-left: 2px; }
+.wf-toolstrip.wf-nogrip .wf-grip-dots { display: none; }
+.wf-statusstrip { background: #f0f0f0; border-top: 1px solid #dcdcdc; padding: 0 12px 0 2px; align-items: center; }
+.wf-tsitem { position: relative; display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; font: inherit; color: inherit;
+  white-space: nowrap; box-sizing: border-box; }
+.wf-tsitem img { width: 16px; height: 16px; display: none; }
+.wf-tsitem.wf-tshasimg img { display: block; }
+.wf-tsitem[data-display="Text"] img, .wf-tsitem[data-display="None"] img { display: none; }
+.wf-tsitem[data-display="Image"].wf-tshasimg .wf-tstext { display: none; }
+.wf-tsitem.wf-tsright { margin-left: auto; }
+.wf-tsitem.wf-tsright ~ .wf-tsitem.wf-tsright { margin-left: 0; }
+.wf-tsbutton { border: 1px solid transparent; background: transparent; padding: 2px 6px; margin: 1px 0; cursor: default; }
+.wf-tsbutton:hover { background: #cce8ff; border-color: #99d1ff; }
+.wf-tsbutton:active { background: #99d1ff; }
+.wf-tsbutton.wf-tschecked { background: #cce8ff; border-color: #3399ff; }
+.wf-tslabel { padding: 2px 6px; }
+.wf-tslabel.wf-tslink .wf-tstext { color: #0000ff; text-decoration: underline; cursor: pointer; }
+.wf-tsstatus { padding: 3px 6px; }
+.wf-tsstatus.wf-tsspring { flex: 1 1 auto; }
+.wf-tssep { width: 1px; background: #c5c9d0; margin: 4px 3px; align-self: stretch; }
+.wf-tstextbox input { width: 100px; height: 19px; border: 1px solid #c5c9d0; padding: 0 3px; font: inherit; outline: none; }
+.wf-tstextbox input:focus { border-color: #0078d7; }
+.wf-tscombo select { height: 21px; font: inherit; min-width: 100px; }
+.wf-tsprogress { width: 100px; height: 14px; background: #e6e6e6; border: 1px solid #bcbcbc; margin: auto 4px; }
+.wf-tsprogress .wf-progress-bar { display: block; height: 100%; width: 0; background: #06b025; }
+.wf-tsdisabled { color: #a0a0a0 !important; pointer-events: none; }
+.wf-tsdisabled img { opacity: 0.4; }
+
+/* menü öğeleri */
+.wf-tsmenu { cursor: default; }
+.wf-tsrow { display: flex; align-items: center; gap: 6px; width: 100%; padding: 2px 7px; border: 1px solid transparent; box-sizing: border-box; }
+.wf-tscheck, .wf-tsarrow, .wf-tsshortcut { display: none; }
+.wf-menustrip > .wf-tsmenu > .wf-tsrow:hover, .wf-menustrip > .wf-tsmenu.open > .wf-tsrow,
+.wf-toolstrip > .wf-tsmenu > .wf-tsrow:hover, .wf-toolstrip > .wf-tsmenu.open > .wf-tsrow { background: #cce8ff; border-color: #99d1ff; }
+.wf-tsddbutton > .wf-tsrow::after { content: "\25BE"; font-size: 9px; margin-left: 2px; }
+.wf-tsdrop { display: none; position: absolute; left: 0; top: 100%; min-width: 160px; background: #f2f2f2; border: 1px solid #ccc;
+  box-shadow: 2px 3px 6px rgba(0, 0, 0, 0.25); padding: 2px; z-index: 1000; flex-direction: column; }
+.wf-tsmenu.open > .wf-tsdrop:not(:empty) { display: flex; }
+.wf-tsdrop .wf-tsdrop { left: 100%; top: -3px; }
+.wf-tsdrop > .wf-tsitem { display: flex; width: 100%; }
+.wf-tsdrop > .wf-tsmenu > .wf-tsrow { padding: 3px 8px 3px 4px; }
+.wf-tsdrop > .wf-tsmenu > .wf-tsrow:hover, .wf-tsdrop > .wf-tsmenu.open > .wf-tsrow { background: #91c9f7; border-color: #91c9f7; }
+.wf-tsdrop .wf-tscheck { display: inline-block; width: 18px; text-align: center; }
+.wf-tsdrop .wf-tschecked > .wf-tsrow > .wf-tscheck::before { content: "\2713"; }
+.wf-tsdrop .wf-tstext { flex: 1; }
+.wf-tsdrop .wf-tsshortcut { display: inline; margin-left: 24px; color: inherit; opacity: 0.8; }
+.wf-tsdrop .wf-tsmenu:has(> .wf-tsdrop:not(:empty)) > .wf-tsrow .wf-tsarrow { display: inline; }
+.wf-tsdrop .wf-tsarrow::before { content: "\25B8"; }
+.wf-tsdrop > .wf-tssep { width: auto; height: 1px; margin: 3px 2px 3px 26px; }
+.wf-tsdrop > .wf-tsbutton, .wf-tsdrop > .wf-tslabel { padding-left: 26px; }
+.wf-ctxmenu { position: absolute; display: flex; }
+.wf-ctxmenu.wf-hidden { display: none !important; }
+
+/* ---------------- DataGridView ---------------- */
+.wf-grid { background: #fff; border: 1px solid #828790; overflow: hidden; outline: none; --grid-line: #a0a0a0; }
+.wf-grid.wf-border-none { border: none; }
+.wf-grid-scroll { position: absolute; inset: 0; overflow: auto; background: #ababab; }
+.wf-grid-table { border-collapse: separate; border-spacing: 0; table-layout: fixed; background: transparent; font: inherit; }
+.wf-grid-table th, .wf-grid-table td {
+  height: 22px; padding: 0 4px; box-sizing: border-box; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  border-right: 1px solid var(--grid-line); border-bottom: 1px solid var(--grid-line); cursor: default; user-select: none;
+}
+.wf-grid-table td { background: #fff; color: #000; text-align: left; vertical-align: middle; position: relative; }
+.wf-grid-table thead th {
+  position: sticky; top: 0; z-index: 2; height: 23px; font-weight: normal; text-align: left;
+  background: linear-gradient(#ffffff, #f0f0f0); border-right-color: #d5d5d5; border-bottom-color: #a0a0a0; color: #000;
+}
+.wf-grid-flat .wf-grid-table thead th, .wf-grid-flat .wf-grid-table th.wf-grh { background: #f0f0f0; }
+.wf-grid-table thead th:hover:not(.wf-gcorner) { background: linear-gradient(#e5f3ff, #d9ebf9); }
+.wf-grid-table th.wf-gcorner { left: 0; z-index: 3; }
+.wf-grid-table th.wf-grh {
+  position: sticky; left: 0; z-index: 1; background: linear-gradient(90deg, #ffffff, #f0f0f0); text-align: center; font-size: 9px; color: #000;
+  border-right-color: #a0a0a0; border-bottom-color: #d5d5d5; padding: 0;
+}
+.wf-grid-table th.wf-grh.wf-gsel { background: #cce4f7; }
+.wf-gsort { float: right; font-size: 8px; color: #555; margin-left: 2px; }
+.wf-grid:focus .wf-gcur:not(.wf-gediting) { outline: 1px dotted #000; outline-offset: -2px; }
+.wf-gediting { padding: 0 !important; background: #fff !important; }
+.wf-geditor { width: 100%; height: 100%; box-sizing: border-box; border: none; outline: none; padding: 0 3px; font: inherit; color: #000; background: #fff; }
+.wf-gbutton { width: 100%; height: 18px; font: inherit; padding: 0 4px; border: 1px solid #adadad; background: #e1e1e1; border-radius: 0; }
+.wf-glink { color: #0066cc; text-decoration: underline; cursor: pointer; }
+.wf-grid-table td input[type=checkbox] { margin: 0; vertical-align: middle; pointer-events: auto; }
+.wf-gcombo::after { content: '▾'; position: absolute; right: 3px; color: #555; }
+
+/* ---------------- Dosya Aç / Kaydet ---------------- */
+.wf-filedialog { width: 520px; max-width: 520px; }
+.wf-fd-path { padding: 8px 12px; font-size: 9pt; border-bottom: 1px solid #e5e5e5; background: #fafafa; }
+.wf-fd-list { height: 190px; overflow: auto; margin: 8px 12px; border: 1px solid #c8c8c8; background: #fff; outline: none; font-size: 9pt; }
+.wf-fd-item { display: flex; gap: 8px; padding: 3px 8px; cursor: default; align-items: center; }
+.wf-fd-item:hover { background: #e5f3ff; }
+.wf-fd-item.selected { background: #cce8ff; }
+.wf-fd-fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-fd-size { color: #666; font-size: 8pt; }
+.wf-fd-empty { color: #888; padding: 16px; text-align: center; }
+.wf-fd-row { display: flex; gap: 8px; align-items: center; padding: 0 12px; font-size: 9pt; }
+.wf-fd-row input { flex: 1; height: 23px; border: 1px solid #7a7a7a; padding: 0 4px; font: 9pt "Segoe UI", sans-serif; outline: none; }
+.wf-fd-row input:focus { border-color: #0078d7; }
+.wf-fd-row select { height: 23px; font: 9pt "Segoe UI", sans-serif; max-width: 180px; }
+.wf-fd-note { padding: 6px 12px 10px; font-size: 8pt; color: #555; min-height: 14px; }
+.wf-fd-pick { min-width: 140px !important; }
+
+/* ---------------- MaskedTextBox / TabControl / ErrorProvider ---------------- */
+.wf-tabcontrol { background: transparent; overflow: visible; }
+.wf-tabhdr { position: absolute; left: 2px; top: 0; right: 0; display: flex; align-items: flex-end; z-index: 1; height: 21px; }
+.wf-tab { padding: 2px 8px 3px; border: 1px solid #d9d9d9; border-bottom: none; background: #f0f0f0; margin-right: -1px; cursor: default; white-space: nowrap; height: calc(100% - 2px); box-sizing: border-box; display: flex; align-items: center; user-select: none; }
+.wf-tab:hover { background: #d8eaf9; }
+.wf-tab.selected { background: #fff; height: 100%; position: relative; z-index: 2; padding-top: 3px; border-color: #d9d9d9; margin-bottom: -1px; }
+.wf-tabframe { position: absolute; left: 0; right: 0; bottom: 0; top: 21px; border: 1px solid #d9d9d9; background: #fff; }
+.wf-tabpage { background: #f0f0f0; z-index: 1; }
+.wf-tabpage.wf-visualback { background: #fff; }
+.wf-erricon { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #e81123; color: #fff; font: bold 11px/14px "Segoe UI", sans-serif; text-align: center; z-index: 50; cursor: default; box-shadow: 0 0 0 1px #fff; }
+.wf-erricon.wf-blink { animation: wf-blink 0.25s steps(1) 6; }
+@keyframes wf-blink { 50% { visibility: hidden; } }
+/* Açık menü diğer kontrollerin üstünde görünsün */
+.wf-strip:has(.wf-tsmenu.open) { z-index: 100000 !important; }
+/* BindingNavigator düğme simgeleri */
+.wf-tsglyph { display: none; font-size: 13px; line-height: 1; min-width: 14px; text-align: center; }
+.wf-tsitem.wf-tshasglyph:not(.wf-tshasimg) .wf-tsglyph { display: inline-block; }
+.wf-tsitem.wf-tshasglyph:not(.wf-tshasimg)[data-display="Image"] .wf-tstext,
+.wf-tsitem.wf-tshasglyph:not(.wf-tshasimg)[data-display="None"] .wf-tstext { display: none; }
+.wf-tsitem.wf-tshasglyph[data-display="Text"] .wf-tsglyph { display: none; }
+.wf-tsdisabled .wf-tsglyph { opacity: 0.45; }
