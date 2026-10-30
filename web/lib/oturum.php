@@ -40,16 +40,18 @@ function html_sayfa(string $baslik, string $govde, int $durum = 200): never
     header('Content-Type: text/html; charset=utf-8');
     header('Cache-Control: no-store');
     $b = htmlspecialchars($baslik, ENT_QUOTES);
+    // Bu sayfa hem kökten hem studyo/ altından gösterilir.
+    $kok = str_contains(str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? ''), '/studyo/') ? '../' : '';
     echo <<<HTML
 <!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>$b</title><link rel="icon" href="data:,">
+<title>$b</title><link rel="icon" type="image/png" href="{$kok}assets/ikon/ikon-32.png">
 <style>
   body{margin:0;font:15px/1.5 "Segoe UI",system-ui,sans-serif;background:#f3f5f9;color:#1d2433;display:flex;min-height:100vh;align-items:center;justify-content:center}
   .kutu{background:#fff;max-width:520px;margin:16px;padding:28px 32px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
   h1{font-size:20px;margin:0 0 12px}
 </style></head>
-<body><div class="kutu"><h1>$b</h1>$govde</div></body></html>
+<body><div class="kutu"><h1><img src="{$kok}assets/ikon/ikon-64.png" alt="" width="32" height="32" style="vertical-align:middle;margin-right:8px">$b</h1>$govde</div></body></html>
 HTML;
     exit;
 }

@@ -182,6 +182,10 @@ async function motorHazir(sayfa) {
     await s1.goto(`${ADRES}/`);
     await s1.waitForSelector('text=Temrin 3 · Döngüler');
     dogrula(await s1.locator('text=Projeyi aç').count() === 1, 'öğrenci ana ekranında sonuç ve "Projeyi aç"');
+    const kart = s1.locator('details.temrin').first();
+    dogrula(!(await kart.evaluate((d) => d.open)) && (await kart.locator('summary').innerText()).includes('70'), 'teslim edilen temrin kapalı başlar, başlıkta puan görünür');
+    await kart.locator('summary').click();
+    dogrula(await kart.evaluate((d) => d.open) && await kart.locator('text=Projeyi aç').isVisible(), 'başlığa tıklayınca açılır');
 
     console.log('Öğrenci 2: hatalı çözüm');
     const s2 = await ogrenciCalismasi('2045', 'Ayberk Ağa', HATALI, ['bilmiyorum', '1\n2\n3\n4']);

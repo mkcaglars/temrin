@@ -63,7 +63,9 @@ header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Temrin <?= (int)$t['temrin_no'] ?> · <?= $e($t['baslik']) ?></title>
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/ikon/ikon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/ikon/ikon-192.png">
+<link rel="apple-touch-icon" href="assets/ikon/ikon-180.png">
 <link rel="stylesheet" href="assets/sayfa.css?v=<?= $e((string)@filemtime(__DIR__ . '/assets/sayfa.css')) ?>">
 </head>
 <body>
