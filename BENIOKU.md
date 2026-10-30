@@ -151,7 +151,8 @@ Tüm okuma ve yazma uç noktalarında rol, ders ve sınıf yetkisi sunucuda dene
   - Her sorgu `ders_id = oturumdaki ders` ve `sinif IN (oturumdaki siniflar)` ile sınırlanır.
   - İstekteki sınıf listede yoksa ya da istekte farklı bir `ders_id`/`ders` varsa **403** döner.
   - Başka sınıftaki bir öğrencinin puan ayrıntısı, düzeltmesi, projesi, doğrulaması ve erişim ayarı da 403 döner. Başka dersin temrini 404 döner.
-- **Temrin tanımı** dersindir: Aynı dersin öğretmenleri temrinleri ortak kullanır. Teslim almış bir temrin değiştirilemez ve silinemez.
+- **Temrin tanımı** dersindir: Aynı dersin öğretmenleri temrinleri ortak kullanır. Teslim almış bir temrinin tanımı değiştirilemez.
+- **Temrin silme:** Onay penceresine **TEMRİN SİL** yazılıp onaylanınca temrin; çalışmaları, teslimleri, puanları ve erişim ayarlarıyla birlikte kalıcı olarak silinir. Başka öğretmenin sınıfında çalışma ya da teslim varsa silinmez (403).
 - **Temrin erişimi sınıf bazındadır:** Öğretmen bir temrini yalnızca kendi sınıfları için açar ya da kapatır.
 - **CSRF:** Tüm yazma istekleri oturuma bağlı CSRF anahtarı ister.
 
@@ -186,13 +187,13 @@ Test motoru (C#, 12 test: Temrin 3 CSV'si doğru ve hatalı çözümlere uygulan
 dotnet test motor/Testler
 ```
 
-Sunucu (PHP, 107 senaryo: giriş, yetki sınırları, CSV yükleme/doğrulama, çalışma, teslim, değerlendirme, doğrulama, puan CSV'si):
+Sunucu (PHP, 123 senaryo: giriş, yetki sınırları, CSV yükleme/doğrulama, çalışma, teslim, değerlendirme, doğrulama, puan CSV'si):
 
 ```bash
 php tests/sunucu_testi.php
 ```
 
-Uçtan uca tarayıcı testi (Playwright, 22 adım). Önce `./build.sh` çalıştırılmış olmalı:
+Uçtan uca tarayıcı testi (Playwright, 27 adım). Önce `./build.sh` çalıştırılmış olmalı:
 
 ```bash
 node tests/tarayici_testi.js
@@ -203,7 +204,7 @@ Var olan bir kuruluma (ör. Apache, boş veritabanıyla) karşı çalıştırmak
 Tarayıcı testinin adımları:
 1. Öğretmen CSV'yi arayüzden yükler, hatalı CSV'nin reddini görür, temrini açar.
 2. İki öğrenci (doğru ve hatalı çözüm) çalışıp teslim eder; test öğrenci tarayıcısında çalışır.
-3. Öğretmen eksik notları girer, teslimleri doğrular, projeyi salt okunur açar, puan CSV'sini indirir ve temrin sayfalarını açar.
+3. Öğretmen eksik notları girer, teslimleri doğrular, projeyi salt okunur açar, puan CSV'sini indirir, temrin sayfalarını açar ve temrini TEMRİN SİL onayıyla siler.
 
 ## Canlı deneme listesi
 

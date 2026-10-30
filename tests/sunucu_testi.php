@@ -273,7 +273,6 @@ $o5 = array_values(array_filter($ayr['olcutler'], fn($o) => $o['no'] === 'O5'))[
 $o6 = array_values(array_filter($ayr['olcutler'], fn($o) => $o['no'] === 'O6'))[0];
 dogrula($ayr['degerlendiren'] === 'ogretmen' && $o5['alinan'] === 18 && $o6['alinan'] === 0, 'öğretmen doğrulaması öğrencinin sonucunun yerine geçer, elle girilen not korunur');
 dogrula(str_contains($o6['tespit'], 'btnWhile içinde while döngüsü yok'), 'CSV tespit metni sonuca yazılır');
-dogrula($post($OA, '/api/ogretmen.php', ['islem' => 'temrin_sil', 'temrin_id' => $TID])['durum'] === 409, 'teslim almış temrin silinemez');
 $r = $post($OA, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'uzerine_yaz' => true, 'csv' => str_replace('bilgi;temrin_no;;;;;;;3;', 'bilgi;temrin_no;;;;;;;30;', $csv)]);
 dogrula($r['durum'] === 409 && $r['json']['kod'] === 'TESLIM_VAR', 'teslim almış temrinin tanımı değiştirilemez');
 $c1 = str_replace(['bilgi;temrin_no;;;;;;;3;', '"1' . "
@@ -296,6 +295,21 @@ dogrula(istek("/sayfa.php?temrin_id=$TID&okul_no=3268", ['oturum' => $OB])['duru
 dogrula(istek("/sayfa.php?temrin_id=$TID&sinif=" . urlencode('11 Donanım B'), ['oturum' => $OB])['durum'] === 403, 'öğretmen başka sınıfın toplu sayfasını göremez');
 dogrula(istek("/sayfa.php?temrin_id=$TID", ['oturum' => $OB])['durum'] === 404, 'öğretmenin sınıfında teslim yoksa sayfa yok (başka sınıf sızmaz)');
 dogrula(istek("/sayfa.php?temrin_id=$TID&ders_id=8", ['oturum' => $OA])['durum'] === 403, 'temrin sayfasında ders_id değiştirmek → 403');
+
+echo "Temrin silme\n";
+$sil = fn(array $o, array $g) => $post($o, '/api/ogretmen.php', ['islem' => 'temrin_sil', 'temrin_id' => $TID] + $g);
+dogrula($sil($OA, [])['json']['kod'] === 'ONAY_GEREKLI', 'onaysız silme reddedilir');
+dogrula($sil($OA, ['onay' => 'temrin sil'])['json']['kod'] === 'ONAY_GEREKLI', 'yanlış yazılan onayla silinmez');
+dogrula($sil($S1, ['onay' => 'TEMRİN SİL'])['durum'] === 403, 'öğrenci temrin silemez');
+$r = $sil($OB, ['onay' => 'TEMRİN SİL']);
+dogrula($r['durum'] === 403 && $r['json']['kod'] === 'BASKA_SINIF' && str_contains($r['json']['mesaj'], '11 Donanım B'), 'başka öğretmenin sınıfında teslim varken silinemez');
+dogrula($sil($OC, ['onay' => 'TEMRİN SİL', 'ders_id' => '8'])['durum'] === 403, 'silmede ders_id değiştirmek → 403');
+$r = $sil($OA, ['onay' => ' TEMRİN SİL ']);
+dogrula($r['durum'] === 200, 'teslim almış temrin onayla silinir');
+$say = fn(string $tablo) => (int)$pdo->query("SELECT COUNT(*) FROM $tablo WHERE " . ($tablo === 'temrinler' ? 'id' : 'temrin_id') . " = $TID")->fetchColumn();
+dogrula($say('temrinler') === 0 && $say('calismalar') === 0 && $say('sonuclar') === 0 && $say('temrin_erisim') === 0, 'çalışmalar, puanlar ve erişim ayarları da silinir');
+dogrula(istek("/api/calisma.php?temrin_id=$TID", ['oturum' => $S1])['durum'] === 404, 'silinen temrin öğrenciye açılmaz');
+dogrula(!in_array($TID, array_column(istek('/api/ogrenci.php', ['oturum' => $S1])['json']['temrinler'], 'temrin_id'), true), 'silinen temrin öğrenci listesinde yok');
 
 echo "Ekranlar\n";
 $e = istek('/', ['oturum' => $OA]);

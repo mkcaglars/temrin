@@ -243,6 +243,23 @@ async function motorHazir(sayfa) {
       await ogr.screenshot({ path: path.join(process.env.EKRAN, 'ogretmen-ayrinti.png') });
     }
 
+    console.log('Öğretmen: temrin silme');
+    await ogr.goto(`${ADRES}/`);
+    await ogr.click('text=Temrinler');
+    await ogr.click('td button:has-text("Sil")');
+    await ogr.waitForSelector('dialog:has-text("TEMRİN SİL")');
+    dogrula(await ogr.locator('dialog:has-text("teslim var")').count() === 1, 'silme penceresi çalışma ve teslim sayısını uyarır');
+    const onayKutusu = ogr.locator('dialog input[type=text]');
+    const onayla = ogr.locator('dialog button:has-text("Onayla")');
+    dogrula(await onayla.isDisabled(), 'onay yazılmadan "Onayla" pasif');
+    await onayKutusu.fill('temrin sil');
+    dogrula(await onayla.isDisabled(), 'yanlış yazılınca "Onayla" pasif kalır');
+    await onayKutusu.fill('TEMRİN SİL');
+    dogrula(!(await onayla.isDisabled()), 'TEMRİN SİL yazılınca "Onayla" etkin');
+    await onayla.click();
+    await ogr.waitForSelector('text=Bu derste henüz temrin yok.');
+    dogrula(true, 'teslim almış temrin onayla silindi');
+
     dogrula(hatalar.length === 0, 'tarayıcıda hata yok' + (hatalar.length ? ': ' + hatalar.join(' | ') : ''));
   } catch (e) {
     hatali++;
