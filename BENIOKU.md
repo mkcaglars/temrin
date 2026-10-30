@@ -77,6 +77,8 @@ Oluşan `dist/` klasörünün **içindekileri** (gizli `.htaccess` dosyaları da
 - `PORTAL_SSO_ANAHTAR` portaldaki `TEMRIN_ANAHTAR` ile aynı olmalı. Portaldaki `TEMRIN_ADRES` bu sitenin adresi olmalı (sonda `/` yok).
 - Site **HTTPS** üzerinden açılmalı (oturum çerezi `Secure`).
 - Tablolar ilk istekte otomatik oluşur.
+- **Portalda çerçeve (iframe):** Temrin yalnızca kendi içinde ve `https://portal.mkcaglar.com` içinde çerçevelenebilir (`web/.htaccess`, `frame-ancestors`); başka siteler çerçeveleyemez. Portal adresi değişirse bu satır güncellenmelidir.
+- **Temrin portalla aynı ana alan adında olmalı** (ör. `temrin.mkcaglar.com`). Oturum çerezi `SameSite=Lax`; Temrin başka bir alan adında olursa portalın çerçevesinde çerez gönderilmez ve giriş tutmaz ("Oturum yok").
 
 ### c-lesson'daki değişiklikleri almak
 
@@ -222,5 +224,6 @@ Canlıya aldıktan sonra sırayla deneyin:
 13. **Projeyi aç:** Puan penceresinde **Projeyi aç** → öğrencinin projesi salt okunur açılmalı ve çalıştırılabilmeli.
 14. **Yetkisiz sınıf:** `api/ogretmen.php?islem=tablo&sinif=<vermediğiniz sınıf>` → 403. `&ders_id=<başka ders>` → 403. İki öğretmen yalnızca kendi sınıflarını görmeli; CSV'de de.
 15. **Puan CSV'si:** "CSV indir" ile indirip Excel'de açın. Türkçe karakterler doğru, sütunlar ayrı olmalı.
-16. **Gizli dosyalar:** `https://<adres>/.env` ve `https://<adres>/lib/db.php` açılmamalı (403/404).
-17. **Çıkış:** "Çıkış" sonrası ana sayfa "Oturum yok" demeli.
+16. **Portal çerçevesi:** Portalda Temrin'i açan sayfada Temrin çerçeve içinde açılmalı ve giriş tutmalı. Başka bir sitede `<iframe src="https://<temrin-adresi>/">` denendiğinde tarayıcı engellemeli.
+17. **Gizli dosyalar:** `https://<adres>/.env` ve `https://<adres>/lib/db.php` açılmamalı (403/404).
+18. **Çıkış:** "Çıkış" sonrası ana sayfa "Oturum yok" demeli.
