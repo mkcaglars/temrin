@@ -26,12 +26,14 @@ header("Content-Security-Policy: default-src 'self'; worker-src 'self' blob:; im
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf" content="<?= $e($_SESSION['csrf'] ?? '') ?>">
 <title>Temrin · <?= $e($k['ders']) ?></title>
-<link rel="icon" href="data:,">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/ikon/ikon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/ikon/ikon-192.png">
+<link rel="apple-touch-icon" href="assets/ikon/ikon-180.png">
 <link rel="stylesheet" href="assets/app.css?v=<?= $e((string)@filemtime(__DIR__ . '/assets/app.css')) ?>">
 </head>
 <body>
 <header class="ust">
-  <div><strong>Temrin</strong> · <?= $e($k['ders']) ?></div>
+  <div class="marka"><img src="assets/ikon/ikon-64.png" alt="" width="28" height="28"><strong>Temrin</strong> · <?= $e($k['ders']) ?></div>
   <div class="kim"><?= $e($k['ad']) ?> <span class="soluk"><?= $alt ?></span> <a href="cikis.php">Çıkış</a></div>
 </header>
 <main id="uygulama" class="icerik"><p class="soluk">Yükleniyor…</p></main>

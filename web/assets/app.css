@@ -45,3 +45,19 @@ dialog{max-height:90vh;overflow:auto}
 a.dugme{display:inline-block;margin-top:6px;background:var(--vurgu);color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none}
 button.tehlike{background:var(--kotu);border-color:var(--kotu);color:#fff}
 button:disabled{opacity:.5;cursor:not-allowed}
+/* Üst çubuk logosu */
+.marka{display:flex;align-items:center;white-space:pre}
+.marka img{border-radius:6px;margin-right:8px}
+/* Öğrenci ekranı: açılır-kapanır temrin kartları */
+details.temrin{padding:0}
+details.temrin>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;user-select:none}
+details.temrin>summary::-webkit-details-marker{display:none}
+details.temrin>summary h2{margin:0;flex:1;font-size:16px}
+details.temrin>summary .ok{width:0;height:0;border-left:6px solid var(--soluk);border-top:5px solid transparent;border-bottom:5px solid transparent;transition:transform .15s}
+details.temrin[open]>summary .ok{transform:rotate(90deg)}
+details.temrin>summary:hover{background:#f8fafc}
+details.temrin[open]>summary{border-bottom:1px solid var(--cizgi)}
+.temrin-govde{padding:12px 16px 16px}
+.ozet-puan{white-space:nowrap;display:flex;align-items:center;gap:6px}
+.ozet-puan b{font-size:18px}
+.arac-cubugu{justify-content:flex-end;margin-bottom:8px}
