@@ -31,7 +31,9 @@ header('Referrer-Policy: same-origin');
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf" content="<?= $e($_SESSION['csrf'] ?? '') ?>">
   <title>Temrin · <?= $e($k['ders']) ?></title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/ikon/ikon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="../assets/ikon/ikon-192.png">
+  <link rel="apple-touch-icon" href="../assets/ikon/ikon-180.png">
   <link rel="stylesheet" href="assets/css/app.css?v=<?= $v ?>">
   <link rel="stylesheet" href="assets/css/winforms.css?v=<?= $v ?>">
   <link rel="stylesheet" href="temrin/temrin.css?v=<?= $v ?>">

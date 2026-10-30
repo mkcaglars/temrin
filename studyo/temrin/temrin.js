@@ -31,6 +31,7 @@ class TemrinIde extends Ide {
     const marka = ust.querySelector('a.brand');
     marka.href = '../';
     marka.title = 'Temrinlerim';
+    marka.querySelector('.brand-logo')?.replaceWith(h('img', { class: 'temrin-logo', src: '../assets/ikon/ikon-64.png', alt: 'Temrin', width: 28, height: 28 }));
     this.titleEl.onclick = null;
     this.titleEl.title = this.name;
     this.titleEl.style.cursor = 'default';
