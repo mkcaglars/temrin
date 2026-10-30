@@ -1,0 +1,15 @@
+# Motor (.NET WebAssembly) dosya türleri
+AddType application/wasm .wasm
+AddType application/octet-stream .dat .blat .dll .pdb
+AddType application/javascript .js .mjs
+AddType application/json .json
+# .gz dosyaları sunucu tarafından açılmasın; tarayıcı kendisi açar (engine.js).
+AddType application/gzip .gz
+<IfModule mod_mime.c>
+  RemoveEncoding .gz
+</IfModule>
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|php|js|json|wasm|dat|gz|css)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

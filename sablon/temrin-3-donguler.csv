@@ -1,0 +1,52 @@
+﻿tur;no;olcut;puan;tip;hedef;girdi;beklenen;metin;tespit
+bilgi;ders;;;;;;;Programlama (C#);
+bilgi;temrin_no;;;;;;;3;
+bilgi;baslik;;;;;;;Döngüler;
+bilgi;sinif;;;;;;;11 Donanım B;
+bilgi;islem_konusu;;;;;;;Yeni bir projede for, while, do-while ve break döngü yapılarının kullanılması;
+bilgi;proje_adi;;;;;;;DonguTemrin;
+bilgi;sure_dk;;;;;;;80;
+bilgi;ogretmen;;;;;;;Mustafa Kemal Çağlar;
+arac;1;;;;;;;Bilgisayar;
+arac;2;;;;;;;Visual Studio veya C# Form Stüdyosu;
+arac;3;;;;;;;Windows Forms App proje şablonu;
+islem;1;;;;;;;"Yeni bir Windows Forms projesi aç (DonguTemrin); forma txtN (TextBox), lstSonuc (ListBox) ve btnFor, btnWhile, btnDoWhile, btnBreak düğmelerini ekle.";
+islem;2;;;;;;;btnFor: for döngüsüyle 1'den txtN değerine kadar sayıları lstSonuc'a yaz.;
+islem;3;;;;;;;btnWhile: while döngüsüyle txtN değerinden 1'e kadar geri say ve lstSonuc'a yaz.;
+islem;4;;;;;;;"btnDoWhile: aynı geri sayımı do-while ile yaz; txtN = 0 girip while ile farkı gözlemle.";
+islem;5;;;;;;;btnBreak: 1'den txtN'e kadar sayıları yazarken ilk 3'ün katı gelince break ile döngüyü bitir.;
+islem;6;;;;;;;"Her düğmede önce lstSonuc'u temizle; txtN = 5 ve 0 ile test et.";
+olcut;O1;;5;ogretmen;;;;İş sağlığı ve güvenliği kurallarına uyulması;
+olcut;O2;;5;ogretmen;;;;Uygun araç / gereç / materyal seçimi ve doğru kullanılması;
+olcut;O3;;5;sure;;;;Sürenin doğru kullanılması;
+olcut;O4;;10;otomatik;;;;Proje ve kontrollerin anlamlı adlarla kurulması, TextBox'tan okuma, Clear kullanımı;
+kontrol;K1;O4;2;derleme;;;;Proje hatasız derlenir;Proje derlenmiyor
+kontrol;K2;O4;2;kontrol_var;txtN;;TextBox;;txtN adlı TextBox yok
+kontrol;K3;O4;2;kontrol_var;lstSonuc;;ListBox;;lstSonuc adlı ListBox yok
+kontrol;K4;O4;2;kontrol_var;"btnFor;btnWhile;btnDoWhile;btnBreak";;Button;;Düğmelerden biri eksik ya da adı farklı
+kontrol;K5;O4;2;calistir;"btnFor;btnFor";txtN=3;lstSonuc=1|2|3;Düğmeye iki kez basınca liste tekrarlanmaz;lstSonuc temizlenmiyor (Items.Clear eksik)
+olcut;O5;;20;otomatik;;;;for döngüsünün doğru kurulması;
+kontrol;K6;O5;8;kod_yapisi;btnFor.Click;;for;;btnFor içinde for döngüsü yok
+kontrol;K7;O5;8;calistir;btnFor;txtN=5;lstSonuc=1|2|3|4|5;;txtN=5 için 1'den 5'e kadar yazmıyor
+kontrol;K8;O5;4;calistir;btnFor;txtN=0;lstSonuc=;;txtN=0 için liste boş kalmalı
+olcut;O6;;20;otomatik;;;;while döngüsünün doğru kurulması;
+kontrol;K9;O6;8;kod_yapisi;btnWhile.Click;;while;;btnWhile içinde while döngüsü yok
+kontrol;K10;O6;8;calistir;btnWhile;txtN=5;lstSonuc=5|4|3|2|1;;txtN=5 için 5'ten 1'e geri saymıyor
+kontrol;K11;O6;4;calistir;btnWhile;txtN=0;lstSonuc=;;txtN=0 için while hiç çalışmamalı
+olcut;O7;;20;otomatik;;;;do-while döngüsünün doğru kurulması ve while ile farkının gösterilmesi;
+kontrol;K12;O7;6;kod_yapisi;btnDoWhile.Click;;do;;btnDoWhile içinde do-while döngüsü yok
+kontrol;K13;O7;6;calistir;btnDoWhile;txtN=5;lstSonuc=5|4|3|2|1;;txtN=5 için 5'ten 1'e geri saymıyor
+kontrol;K14;O7;4;calistir;btnDoWhile;txtN=0;lstSonuc=0;;txtN=0 iken do-while bir kez çalışıp 0 yazmalı
+soru;S1;O7;4;acik;;;en az bir kez|koşul sonda|koşul başta;txtN = 0 girdiğinizde btnWhile ile btnDoWhile neden farklı sonuç verdi? Kısaca açıklayınız.;
+olcut;O8;;10;otomatik;;;;break ile döngünün doğru kesilmesi;
+kontrol;K15;O8;4;kod_yapisi;btnBreak.Click;;break;;btnBreak içinde break yok
+kontrol;K16;O8;3;calistir;btnBreak;txtN=10;lstSonuc=1|2;;İlk 3'ün katında döngü kesilmiyor
+soru;S2;O8;3;cikti;;"for (int i = 1; i <= 10; i++)
+{
+    if (i % 4 == 0) break;
+    Console.WriteLine(i);
+}";"1
+2
+3";Aşağıdaki kod çalıştığında ekrana ne yazar?;
+olcut;O9;;5;otomatik;;;;Test değerleriyle doğru sonuçların elde edilmesi;
+kontrol;K17;O9;5;calistir;"btnFor;btnWhile;btnDoWhile;btnBreak";txtN=5;hatasiz;Tüm düğmeler çalışma hatası vermeden çalışır;Düğmelerden biri çalışırken hata veriyor

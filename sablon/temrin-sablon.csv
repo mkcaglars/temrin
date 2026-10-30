@@ -1,0 +1,21 @@
+﻿tur;no;olcut;puan;tip;hedef;girdi;beklenen;metin;tespit
+bilgi;ders;;;;;;;;
+bilgi;temrin_no;;;;;;;;
+bilgi;baslik;;;;;;;;
+bilgi;sinif;;;;;;;;
+bilgi;islem_konusu;;;;;;;;
+bilgi;proje_adi;;;;;;;;
+bilgi;sure_dk;;;;;;;;
+bilgi;ogretmen;;;;;;;;
+arac;1;;;;;;;Bilgisayar;
+arac;2;;;;;;;C# Form Stüdyosu;
+islem;1;;;;;;;;
+olcut;O1;;5;ogretmen;;;;İş sağlığı ve güvenliği kurallarına uyulması;
+olcut;O2;;5;ogretmen;;;;Uygun araç / gereç / materyal seçimi ve doğru kullanılması;
+olcut;O3;;5;sure;;;;Sürenin doğru kullanılması;
+olcut;O4;;85;otomatik;;;;;
+kontrol;K1;O4;;derleme;;;;;
+kontrol;K2;O4;;kontrol_var;;;;;
+kontrol;K3;O4;;kod_yapisi;;;;;
+kontrol;K4;O4;;calistir;;;;;
+soru;S1;O4;;cikti;;;;;

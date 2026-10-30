@@ -1,0 +1,7 @@
+.env
+*.sqlite
+dist/
+build/
+node_modules/
+motor/*/bin/
+motor/*/obj/

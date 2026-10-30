@@ -1,0 +1,84 @@
+# Her "main" dalına gönderimde: testleri çalıştırır, siteyi derler ve derlenmiş siteyi "yayin" dalına gönderir.
+# Hostinger (hPanel > Gelişmiş > GIT) "yayin" dalını public_html'e çeker; otomatik yayın açıksa her güncellemede
+# kendiliğinden çeker. Derleme GitHub'ın sunucusunda yapılır; kendi bilgisayarınıza .NET, Node.js kurmanız gerekmez.
+#
+# "yayin" dalında yalnızca derlenmiş site (dist/ içeriği) bulunur; kaynak kod, testler ve c-lesson kaynakları yoktur.
+# .env dosyası public_html'in dışında durduğu için yayın ona dokunmaz.
+name: Derle ve Yayınla
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: yayinla-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write   # "yayin" dalına göndermek için
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true   # c-lesson (C# Form Stüdyosu)
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, sqlite3, mbstring, curl
+          coverage: none
+
+      - name: Node paketleri
+        run: npm ci --no-audit --no-fund
+
+      - name: Test motoru testleri (C#)
+        run: dotnet test motor/Testler/Testler.csproj --nologo
+
+      - name: Sunucu testleri (PHP)
+        run: php tests/sunucu_testi.php
+
+      - name: Siteyi derle
+        run: ./build.sh
+
+      - name: Tarayıcı testleri (Playwright)
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.63.0
+          npx playwright install --with-deps chromium
+          node tests/tarayici_testi.js
+
+      - name: Derlenmiş siteyi sakla
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: dist/
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Derlenmiş siteyi "yayin" dalına gönder
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: yayin
+          publish_dir: ./dist
+          enable_jekyll: true   # .nojekyll dosyası eklenmesin (GitHub Pages kullanılmıyor)
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          full_commit_message: "Yayın: ${{ github.sha }}"
