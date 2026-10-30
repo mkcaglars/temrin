@@ -43,3 +43,5 @@ pre.cevap{margin:2px 0;padding:4px 6px;background:#f3f4f6;border-radius:4px;font
 .olcut-satiri td{background:#f8fafc;font-weight:600}
 dialog{max-height:90vh;overflow:auto}
 a.dugme{display:inline-block;margin-top:6px;background:var(--vurgu);color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none}
+button.tehlike{background:var(--kotu);border-color:var(--kotu);color:#fff}
+button:disabled{opacity:.5;cursor:not-allowed}

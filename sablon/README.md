@@ -83,4 +83,4 @@ Derlenmeyen projede `kod_yapisi` ve `kod_icerir` yine çalışır (yalnızca kod
 3. **Teslim et** dendiğinde kontroller çalışır. Öğrenci sonucu ve eksiklerini görür; projeyi çalıştırmaya devam edebilir ama değiştirip yeniden teslim edemez.
 4. Öğretmen `ogretmen` ölçütlerini ve `acik` soruları puanlar, teslimleri doğrular. Her öğrenci için temrin sayfası yazdırılabilir.
 
-Teslim almış bir temrin değiştirilemez ve silinemez; düzeltme gerekiyorsa yeni bir temrin numarasıyla yükleyin.
+Teslim almış bir temrinin tanımı değiştirilemez; düzeltme gerekiyorsa yeni bir temrin numarasıyla yükleyin ya da temrini silip yeniden yükleyin. Silmek için onay penceresine **TEMRİN SİL** yazılır; çalışmalar ve puanlar da silinir.

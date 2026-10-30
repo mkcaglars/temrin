@@ -170,7 +170,7 @@ async function temrinlerPaneli() {
         t.hesaplanacak_ciktilar.length ? el('button', { class: 'ana', onclick: () => ciktilariHesapla(t) }, `Çıktıları hesapla (${t.hesaplanacak_ciktilar.length})`) : null,
         t.teslim_sayisi ? el('button', { onclick: () => dogrula(t) }, 'Teslimleri doğrula') : null,
         t.teslim_sayisi ? el('a', { href: `sayfa.php?${new URLSearchParams({ temrin_id: t.temrin_id, ...(durum.sinif ? { sinif: durum.sinif } : {}) })}`, target: '_blank', rel: 'noopener' }, 'Temrin sayfaları ↗') : null,
-        t.teslim_sayisi ? null : el('button', { onclick: () => sil(t) }, 'Sil'))));
+        el('button', { class: 'tehlike', onclick: () => sil(t) }, 'Sil'))));
   return el('div', {},
     el('div', { class: 'kart' }, el('h2', {}, 'Temrin yükle'),
       el('p', { class: 'soluk' }, 'Temrin CSV şablonunu doldurup yükleyin. Aynı temrin numarası varsa (teslim almamışsa) üzerine yazılabilir.'),
@@ -201,9 +201,34 @@ async function onizle(temrinId) {
   dlg.showModal();
 }
 
+const SIL_ONAYI = 'TEMRİN SİL';
+
+/** Silme onayı: kutuya TEMRİN SİL yazılmadan "Onayla" düğmesi çalışmaz. */
 async function sil(t) {
-  if (!confirm(`Temrin ${t.temrin_no} (${t.baslik}) silinsin mi?`)) return;
-  try { await api(null, { islem: 'temrin_sil', temrin_id: t.temrin_id }); goster(); } catch (e) { alert(e.message); }
+  const giris = el('input', { type: 'text', autocomplete: 'off', spellcheck: 'false', placeholder: SIL_ONAYI });
+  const onayla = el('button', { class: 'tehlike', disabled: true }, 'Onayla');
+  const mesaj = el('p', { class: 'hata' });
+  const uyari = t.calisma_sayisi
+    ? `Bu temrinde ${t.calisma_sayisi} öğrenci çalışması${t.teslim_sayisi ? ` ve ${t.teslim_sayisi} teslim` : ''} var. Projeler, cevaplar ve puanlar da kalıcı olarak silinir; geri alınamaz.`
+    : 'Temrin kalıcı olarak silinir; geri alınamaz.';
+  const dlg = el('dialog', {}, el('div', { class: 'kart' },
+    el('h2', {}, `Temrin ${t.temrin_no} (${t.baslik}) silinsin mi?`),
+    el('p', {}, uyari),
+    el('p', {}, 'Onaylamak için kutuya ', el('b', {}, SIL_ONAYI), ' yazın:'),
+    giris, mesaj,
+    el('div', { class: 'satir' }, onayla, el('button', { onclick: () => dlg.close() }, 'Vazgeç'))));
+  giris.addEventListener('input', () => { onayla.disabled = giris.value.trim() !== SIL_ONAYI; });
+  onayla.addEventListener('click', async () => {
+    try {
+      await api(null, { islem: 'temrin_sil', temrin_id: t.temrin_id, onay: giris.value.trim() });
+      dlg.close();
+      goster();
+    } catch (e) { mesaj.textContent = e.message; }
+  });
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
+  giris.focus();
 }
 
 /** İlerleme penceresi; iş bitince kapanır. */

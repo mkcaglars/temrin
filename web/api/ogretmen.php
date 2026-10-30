@@ -12,7 +12,9 @@
 //   GET  ?islem=teslimler&temrin_id=1[&sinif=..]   → yetkili sınıflardaki teslimler (yeniden değerlendirme için)
 //   GET  ?islem=teslim&temrin_id=1&okul_no=3268    → tek teslimin projesi (öğretmen tarayıcısında değerlendirmek için)
 //   POST {"islem": "temrin_yukle", "csv": "...", "uzerine_yaz": false}
-//   POST {"islem": "temrin_sil", "temrin_id": 1}   (teslim yoksa)
+//   POST {"islem": "temrin_sil", "temrin_id": 1, "onay": "TEMRİN SİL"}
+//        Temrinle birlikte çalışmalar, teslimler ve puanlar da silinir. Başka öğretmenin sınıfında
+//        çalışma ya da teslim varsa reddedilir (öğretmen başka sınıfın verisini silemez).
 //   POST {"islem": "cikti_kaydet", "temrin_id": 1, "ciktilar": {"S2": "1\n2\n3"}}
 //   POST {"islem": "degerlendirme", "temrin_id": 1, "okul_no": "3268", "sonuc": {...motor sonucu...}}
 //   POST istekleri X-CSRF-Token başlığı ister.
@@ -63,6 +65,15 @@ function yetkili_sonuc(array $k, int $temrinId, string $okulNo): array
     return $r;
 }
 
+const TEMRIN_SIL_ONAYI = 'TEMRİN SİL';
+
+function calisma_sayisi(int $temrinId): int
+{
+    $st = db()->prepare('SELECT COUNT(*) FROM calismalar WHERE temrin_id = ?');
+    $st->execute([$temrinId]);
+    return (int)$st->fetchColumn();
+}
+
 /** Öğretmenin sınıflarındaki teslim edilmiş çalışma. */
 function yetkili_teslim(array $k, int $temrinId, string $okulNo): array
 {
@@ -88,6 +99,7 @@ function temrin_ozeti_ogretmen(array $t): array
             'islem_konusu' => $tanim['bilgi']['islem_konusu'] ?? '', 'sure_dk' => $tanim['bilgi']['sure_dk'] ?? null,
             'olcut_sayisi' => count($tanim['olcutler'] ?? []), 'kontrol_sayisi' => count(tanim_kontroller($tanim)),
             'soru_sayisi' => count(tanim_ogrenciye($tanim)['sorular']), 'teslim_sayisi' => teslim_sayisi((int)$t['id']),
+            'calisma_sayisi' => calisma_sayisi((int)$t['id']),
             'hesaplanacak_ciktilar' => tanim_hesaplanacak_ciktilar($tanim)];
 }
 
@@ -216,11 +228,23 @@ try {
 
         if ($islem === 'temrin_sil') {
             $t = ders_temrini($tamsayi('temrin_id'), $k['ders_id']);
-            if (teslim_sayisi((int)$t['id']) > 0) json_hata(409, 'TESLIM_VAR', 'Teslim almış temrin silinemez.');
+            if (!is_string($g['onay'] ?? null) || trim($g['onay']) !== TEMRIN_SIL_ONAYI) {
+                json_hata(400, 'ONAY_GEREKLI', 'Silmek için onay kutusuna ' . TEMRIN_SIL_ONAYI . ' yazın.');
+            }
             $pdo = db();
-            foreach (['DELETE FROM calismalar WHERE temrin_id = ?', 'DELETE FROM temrin_erisim WHERE temrin_id = ?', 'DELETE FROM temrinler WHERE id = ?'] as $sql) {
+            // Temrin dersin tüm öğretmenlerince kullanılır: başka sınıfın çalışması varsa silinmez.
+            $st = $pdo->prepare('SELECT DISTINCT sinif FROM (SELECT sinif FROM calismalar WHERE temrin_id = ? UNION SELECT sinif FROM sonuclar WHERE temrin_id = ?) s');
+            $st->execute([$t['id'], $t['id']]);
+            $baska = array_values(array_diff($st->fetchAll(PDO::FETCH_COLUMN), $k['siniflar']));
+            if ($baska) {
+                json_hata(403, 'BASKA_SINIF', 'Bu temrinde başka sınıfların (' . implode(', ', $baska) . ') çalışmaları var; yalnızca o sınıfların öğretmeni de silmeyi kabul ederse ya da çalışmalar kalmazsa silinebilir.');
+            }
+            $pdo->beginTransaction();
+            foreach (['DELETE FROM sonuclar WHERE temrin_id = ?', 'DELETE FROM calismalar WHERE temrin_id = ?',
+                      'DELETE FROM temrin_erisim WHERE temrin_id = ?', 'DELETE FROM temrinler WHERE id = ?'] as $sql) {
                 $pdo->prepare($sql)->execute([$t['id']]);
             }
+            $pdo->commit();
             json_yanit(['durum' => 'tamam']);
         }
 
