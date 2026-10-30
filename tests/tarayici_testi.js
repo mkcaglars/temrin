@@ -11,14 +11,17 @@ const crypto = require('crypto');
 
 const KOK = path.resolve(__dirname, '..');
 const DIST = path.join(KOK, 'dist');
-if (!fs.existsSync(path.join(DIST, 'studyo/_framework'))) { console.error('Önce ./build.sh çalıştırın.'); process.exit(1); }
+if (!process.env.TEST_ADRES && !fs.existsSync(path.join(DIST, 'studyo/_framework'))) { console.error('Önce ./build.sh çalıştırın.'); process.exit(1); }
 
+// Varsayılan: dist/ geçici .env ve SQLite ile php -S üzerinde çalışır.
+// Var olan bir kuruluma karşı (ör. Apache): TEST_ADRES=http://127.0.0.1:8097 TEST_ANAHTAR=<PORTAL_SSO_ANAHTAR> (boş veritabanı)
 const gecici = fs.mkdtempSync(path.join(os.tmpdir(), 'temrin-tarayici-'));
-const anahtar = crypto.randomBytes(32).toString('hex');
+const disSunucu = !!process.env.TEST_ADRES;
+const anahtar = process.env.TEST_ANAHTAR || crypto.randomBytes(32).toString('hex');
 fs.writeFileSync(path.join(gecici, '.env'), `PORTAL_SSO_ANAHTAR=${anahtar}\nDB_DSN=sqlite:${gecici}/t.sqlite\nSAAT_DILIMI=Europe/Istanbul\n`);
 const PORT = 18500 + Math.floor(Math.random() * 400);
-const ADRES = `http://127.0.0.1:${PORT}`;
-const sunucu = spawn('php', ['-d', `session.save_path=${gecici}`, '-S', `127.0.0.1:${PORT}`, '-t', DIST],
+const ADRES = process.env.TEST_ADRES || `http://127.0.0.1:${PORT}`;
+const sunucu = disSunucu ? null : spawn('php', ['-d', `session.save_path=${gecici}`, '-S', `127.0.0.1:${PORT}`, '-t', DIST],
   { env: { ...process.env, TEMRIN_ENV_DOSYASI: path.join(gecici, '.env') }, stdio: 'ignore' });
 
 let basarili = 0, hatali = 0;
@@ -247,7 +250,7 @@ async function motorHazir(sayfa) {
     if (hatalar.length) console.log('    tarayıcı hataları: ' + hatalar.join(' | '));
   } finally {
     await tarayici.close();
-    sunucu.kill();
+    sunucu?.kill();
     fs.rmSync(gecici, { recursive: true, force: true });
   }
   console.log(`\n${basarili} başarılı, ${hatali} hatalı`);

@@ -12,4 +12,7 @@ DirectoryIndex index.php
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteRule ^lib/ - [F,L]
+  # Hostinger Git ile yayında public_html/.git klasörü oluşur; noktayla başlayan klasör ve dosyalar açılamasın.
+  RewriteRule (^|/)\. - [F,L]
 </IfModule>
+RedirectMatch 404 /\.git

@@ -33,22 +33,33 @@ Editör, form tasarımcısı, derleyici ve WinForms çalıştırıcısı [C# For
 
 Sunucuda yalnızca PHP 8.1+ ve MySQL gerekir. Site derlenerek `dist/` klasörü (~60 MB: PHP dosyaları, editör, motor `studyo/_framework`, Monaco editör) üretilir ve bu klasörün **içeriği** sunucuya yüklenir.
 
-### A) GitHub Actions ile otomatik (önerilir)
+### A) GitHub + Hostinger Git ile otomatik (önerilir)
 
-Kendi bilgisayarınıza hiçbir şey kurmanız gerekmez. `main` dalına her gönderimde GitHub'ın sunucusu (`.github/workflows/yayinla.yml`):
-1. c-lesson alt modülüyle birlikte depoyu indirir.
-2. Test motoru, sunucu ve tarayıcı testlerini çalıştırır. Bir test kalırsa yükleme yapılmaz.
-3. `./build.sh` ile siteyi derler ve FTP ile Hostinger'a yükler.
+Kendi bilgisayarınıza hiçbir şey kurmanız gerekmez. Derleme GitHub'da, yayın Hostinger'ın Git özelliğiyle yapılır.
 
-İlk kurulum:
-1. hPanel > **Dosyalar > FTP Hesapları** bölümünden FTP bilgilerini alın.
-2. GitHub'da Temrin deposunun **Settings > Secrets and variables > Actions** bölümüne şunları ekleyin:
-   - Secrets: `FTP_SERVER` (ör. `ftp.okulunuz.k12.tr` veya IP), `FTP_USERNAME`, `FTP_PASSWORD`
-   - Variables: `FTP_DIR`. FTP hesabının kök klasörüne göre sitenin klasörü, sonunda `/` olsun (ör. `domains/temrin.okulunuz.k12.tr/public_html/`). c-lesson'dan **farklı** bir klasör olmalı.
-3. `.env.example` dosyasını `.env` adıyla bu klasörün **yanına** (bir üst klasöre) koyup doldurun. Yükleme `.env`'ye dokunmaz.
-4. `main` dalına bir değişiklik gönderin ya da **Actions** sekmesinden **Derle ve Yayınla** iş akışını elle çalıştırın.
+Hostinger depoyu olduğu gibi çeker, derleme yapamaz. Bu yüzden derlenmiş site ayrı bir dalda tutulur:
+- **`main`:** Kaynak kod.
+- **`yayin`:** Yalnızca derlenmiş site (`dist/` içeriği). Bu dala elle dokunulmaz.
 
-FTP ayarları girilmemişse testler ve derleme yine çalışır, yalnızca yükleme atlanır. Her derlemenin çıktısı Actions sayfasında "site" adlı dosya olarak 7 gün indirilebilir.
+`main` dalına her gönderimde GitHub Actions (`.github/workflows/yayinla.yml`):
+1. Depoyu c-lesson alt modülüyle birlikte indirir.
+2. Test motoru, sunucu ve tarayıcı testlerini çalıştırır. Bir test kalırsa yayın yapılmaz.
+3. `./build.sh` ile siteyi derler ve sonucu `yayin` dalına gönderir.
+
+Hostinger `yayin` dalını `public_html`'e çeker; otomatik yayın açıksa her güncellemede kendiliğinden çeker.
+
+İlk kurulum (sırası önemli):
+1. Değişiklikleri `main` dalına birleştirin. GitHub'da **Actions** sekmesinde **Derle ve Yayınla** iş akışının yeşil bittiğini ve **`yayin`** dalının oluştuğunu görün.
+2. Hostinger hPanel'de sitenin **Gelişmiş > GIT** bölümünü açın:
+   - Depo: `https://github.com/mkcaglars/temrin.git`
+   - Dal: **`yayin`**
+   - Dizin: boş bırakın (`public_html`). Hostinger bu klasörün **boş** olmasını ister; varsa varsayılan dosyaları (ör. `default.php`) silin.
+   - **Oluştur** ve ardından **Dağıt (Deploy)** deyin.
+3. Aynı sayfada **Otomatik Dağıtım**'ı açın ve verilen webhook adresini kopyalayın. GitHub'da Temrin deposunun **Settings > Webhooks > Add webhook** bölümüne yapıştırın ("Just the push event"). Artık her yayından sonra Hostinger kendiliğinden çeker.
+4. `.env.example` dosyasını `.env` adıyla `public_html`'in **yanına** (bir üst klasöre) koyup doldurun. Git yayını `.env`'ye dokunmaz.
+5. Tarayıcıdan `https://<adres>/.git/config` ve `https://<adres>/.env` açılmamalı (403). Git yayını `public_html` içinde bir `.git` klasörü oluşturur; `.htaccess` bunu kapatır.
+
+Her derlemenin çıktısı Actions sayfasında "site" adlı dosya olarak 7 gün indirilebilir (gerekirse elle yüklemek için).
 
 ### B) Kendi bilgisayarınızda
 
@@ -78,7 +89,7 @@ c-lesson'da yapılan düzeltmeler Temrin'e kendiliğinden gelmez; alt modülün 
 git submodule update --remote c-lesson
 ```
 
-Ardından değişikliği Temrin'e commit edip `main`'e gönderin; Actions yeniden derleyip yükler (ya da B yolunda `./build.sh` ile yeniden derleyin). Testler, c-lesson'daki bir değişikliğin Temrin'i bozup bozmadığını yüklemeden önce yakalar.
+Ardından değişikliği Temrin'e commit edip `main`'e gönderin; Actions test edip derler, `yayin` dalını günceller, Hostinger çeker (ya da B yolunda `./build.sh` ile yeniden derleyin). Testler, c-lesson'daki bir değişikliğin Temrin'i bozup bozmadığını yüklemeden önce yakalar.
 
 ## Akış
 
@@ -180,16 +191,18 @@ Sunucu (PHP, 107 senaryo: giriş, yetki sınırları, CSV yükleme/doğrulama, �
 php tests/sunucu_testi.php
 ```
 
-Uçtan uca tarayıcı testi (Playwright, 21 adım). Önce `./build.sh` çalıştırılmış olmalı:
+Uçtan uca tarayıcı testi (Playwright, 22 adım). Önce `./build.sh` çalıştırılmış olmalı:
 
 ```bash
 node tests/tarayici_testi.js
 ```
 
+Var olan bir kuruluma (ör. Apache, boş veritabanıyla) karşı çalıştırmak için `TEST_ADRES` ve `TEST_ANAHTAR` (o kurulumun `PORTAL_SSO_ANAHTAR` değeri) verilir.
+
 Tarayıcı testinin adımları:
 1. Öğretmen CSV'yi arayüzden yükler, hatalı CSV'nin reddini görür, temrini açar.
 2. İki öğrenci (doğru ve hatalı çözüm) çalışıp teslim eder; test öğrenci tarayıcısında çalışır.
-3. Öğretmen eksik notları girer, teslimleri doğrular, projeyi salt okunur açar ve puan CSV'sini indirir.
+3. Öğretmen eksik notları girer, teslimleri doğrular, projeyi salt okunur açar, puan CSV'sini indirir ve temrin sayfalarını açar.
 
 ## Canlı deneme listesi
 

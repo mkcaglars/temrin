@@ -1,11 +1,9 @@
-# Her "main" dalına gönderimde: testleri çalıştırır, siteyi derler ve (ayarlıysa) Hostinger'a FTP ile yükler.
-# Derleme GitHub'ın sunucusunda yapılır; kendi bilgisayarınıza .NET, Node.js kurmanız gerekmez.
+# Her "main" dalına gönderimde: testleri çalıştırır, siteyi derler ve derlenmiş siteyi "yayin" dalına gönderir.
+# Hostinger (hPanel > Gelişmiş > GIT) "yayin" dalını public_html'e çeker; otomatik yayın açıksa her güncellemede
+# kendiliğinden çeker. Derleme GitHub'ın sunucusunda yapılır; kendi bilgisayarınıza .NET, Node.js kurmanız gerekmez.
 #
-# Gerekli depo ayarları (Settings > Secrets and variables > Actions):
-#   Secrets:   FTP_SERVER, FTP_USERNAME, FTP_PASSWORD
-#   Variables: FTP_DIR  (ör. "public_html/" veya alt alan adı için "domains/temrin.okul.com/public_html/")
-# FTP ayarları yoksa testler ve derleme yine çalışır, yalnızca yükleme atlanır.
-# .env dosyası public_html'in dışında durduğu için yükleme ona dokunmaz.
+# "yayin" dalında yalnızca derlenmiş site (dist/ içeriği) bulunur; kaynak kod, testler ve c-lesson kaynakları yoktur.
+# .env dosyası public_html'in dışında durduğu için yayın ona dokunmaz.
 name: Derle ve Yayınla
 
 on:
@@ -18,11 +16,13 @@ concurrency:
   group: yayinla-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write   # "yayin" dalına göndermek için
+
 jobs:
   derle:
     runs-on: ubuntu-latest
     env:
-      FTP_SERVER: ${{ secrets.FTP_SERVER }}
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
       DOTNET_NOLOGO: 1
     steps:
@@ -71,16 +71,14 @@ jobs:
           include-hidden-files: true
           retention-days: 7
 
-      - name: Hostinger'a yükle (FTP)
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.FTP_SERVER != ''
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Derlenmiş siteyi "yayin" dalına gönder
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/
-          server-dir: ${{ vars.FTP_DIR || 'public_html/' }}
-          exclude: |
-            **/.git*
-            **/.git*/**
-            .env
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: yayin
+          publish_dir: ./dist
+          enable_jekyll: true   # .nojekyll dosyası eklenmesin (GitHub Pages kullanılmıyor)
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          full_commit_message: "Yayın: ${{ github.sha }}"
