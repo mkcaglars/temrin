@@ -15,5 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\sablon\temrin-3-donguler.csv" Link="temrin-3-donguler.csv" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\tests\esneklik_vektorleri.json" Link="esneklik_vektorleri.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

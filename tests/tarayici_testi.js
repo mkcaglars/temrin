@@ -247,9 +247,14 @@ async function motorHazir(sayfa) {
       await ogr.screenshot({ path: path.join(process.env.EKRAN, 'ogretmen-ayrinti.png') });
     }
 
-    console.log('Öğretmen: temrin silme');
+    console.log('Öğretmen: onay modu');
     await ogr.goto(`${ADRES}/`);
     await ogr.click('text=Temrinler');
+    await ogr.click('button:has-text("Öğretmen onayı: kapalı")');
+    await ogr.waitForSelector('button:has-text("Öğretmen onayı: açık")');
+    dogrula(true, 'öğretmen onay modu teyitle açıldı');
+
+    console.log('Öğretmen: temrin silme');
     await ogr.click('td button:has-text("Sil")');
     await ogr.waitForSelector('dialog:has-text("TEMRİN SİL")');
     dogrula(await ogr.locator('dialog:has-text("teslim var")').count() === 1, 'silme penceresi çalışma ve teslim sayısını uyarır');

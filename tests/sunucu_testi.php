@@ -266,7 +266,11 @@ dogrula(istek("/api/calisma.php?temrin_id=$TID&okul_no=3268", ['oturum' => $OA])
 dogrula(istek("/api/calisma.php?temrin_id=$TID&okul_no=3268", ['oturum' => $OB])['durum'] === 403, 'öğretmen başka sınıfın teslimini göremez');
 dogrula(istek("/api/ogretmen.php?islem=teslim&temrin_id=$TID&okul_no=3268", ['oturum' => $OB])['durum'] === 403, 'başka sınıfın teslim projesi alınamaz');
 dogrula($post($OB, '/api/ogretmen.php', ['islem' => 'degerlendirme', 'temrin_id' => $TID, 'okul_no' => '3268', 'sonuc' => $hepsi(false)])['durum'] === 403, 'başka sınıfın teslimi yeniden değerlendirilemez');
-$post($OA, '/api/ogretmen.php', ['islem' => 'duzelt', 'temrin_id' => $TID, 'okul_no' => '3268', 'olcutler' => [['no' => 'O5', 'alinan' => 18, 'tespit' => 'Öğretmen notu']]]);
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'duzelt', 'temrin_id' => $TID, 'okul_no' => '3268', 'olcutler' => [['no' => 'O5', 'alinan' => 18, 'tespit' => 'Öğretmen notu']]]);
+dogrula($r['durum'] === 400 && $r['json']['kod'] === 'GEREKCE_GEREKLI', 'önerilen puandan farklı puan gerekçesiz verilemez');
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'duzelt', 'temrin_id' => $TID, 'okul_no' => '3268', 'olcutler' => [['no' => 'O5', 'alinan' => 18, 'tespit' => 'Öğretmen notu', 'gerekce' => 'Döngü sınırı sınıfta gösterildiği gibi değil']]]);
+$o5d = array_values(array_filter($r['json']['sonuc']['olcutler'], fn($o) => $o['no'] === 'O5'))[0];
+dogrula($r['durum'] === 200 && $o5d['gerekce'] === 'Döngü sınırı sınıfta gösterildiği gibi değil' && $o5d['oneri'] === 20, 'gerekçe ve sistemin önerisi saklanır');
 $d = $post($OA, '/api/ogretmen.php', ['islem' => 'degerlendirme', 'temrin_id' => $TID, 'okul_no' => '3268', 'sonuc' => $hepsi(false)]);
 $ayr = istek("/api/ogretmen.php?islem=sonuc&temrin_id=$TID&okul_no=3268", ['oturum' => $OA])['json']['sonuc'];
 $o5 = array_values(array_filter($ayr['olcutler'], fn($o) => $o['no'] === 'O5'))[0];
@@ -295,6 +299,73 @@ dogrula(istek("/sayfa.php?temrin_id=$TID&okul_no=3268", ['oturum' => $OB])['duru
 dogrula(istek("/sayfa.php?temrin_id=$TID&sinif=" . urlencode('11 Donanım B'), ['oturum' => $OB])['durum'] === 403, 'öğretmen başka sınıfın toplu sayfasını göremez');
 dogrula(istek("/sayfa.php?temrin_id=$TID", ['oturum' => $OB])['durum'] === 404, 'öğretmenin sınıfında teslim yoksa sayfa yok (başka sınıf sızmaz)');
 dogrula(istek("/sayfa.php?temrin_id=$TID&ders_id=8", ['oturum' => $OA])['durum'] === 403, 'temrin sayfasında ders_id değiştirmek → 403');
+
+echo "Esnek puanlama\n";
+require_once "$kok/web/lib/puanla.php";
+$vek = json_decode(file_get_contents("$kok/tests/esneklik_vektorleri.json"), true)['vektorler'];
+$uyan = count(array_filter($vek, fn($v) => cikti_uyumu($v['beklenen'], $v['alinan'], $v['mod']) === $v['sonuc']));
+dogrula($uyan === count($vek), "PHP karşılaştırması motorla aynı ($uyan/" . count($vek) . " ortak vektör)");
+$kalem = ['no' => 'K3', 'puan' => 12, 'tespit' => ''];
+[$a, $m] = kontrol_puani($kalem, ['gecti' => true], ['bicim' => 0, 'ad' => 0]);
+dogrula($a === 12 && $m === '', 'eski kayıt biçimi (yalnızca gecti) aynen puanlanır');
+[$a, $m] = kontrol_puani($kalem, ['gecti' => false, 'oran' => 0.5, 'durum' => 2, 'gecen' => 1, 'mesaj' => 'lblSonuc: beklenen "55", bulunan "60" (txtNotlar=50 60).'], ['bicim' => 0, 'ad' => 0]);
+dogrula($a === 6 && $m === 'lblSonuc: beklenen "55", bulunan "60" (txtNotlar=50 60) (2 durumdan 1\'i geçti); 6 puan kesildi.', "iki durumdan biri geçince yarım puan, neden Tespit'e yazılır ($m)");
+$not = ['Çıktı biçimi farklı: beklenen "Ortalama: 72,5", alınan "ortalama=72.5"'];
+[$a, $m] = kontrol_puani($kalem, ['gecti' => true, 'oran' => 1, 'bicim' => true, 'notlar' => $not], ['bicim' => 0, 'ad' => 0]);
+dogrula($a === 12 && $m === 'Çıktı biçimi farklı: beklenen "Ortalama: 72,5", alınan "ortalama=72.5"; mantık doğru, puan kesilmedi.', 'biçim farkı: varsayılan kesinti yok, not Tespit\'e yazılır');
+[$a, $m] = kontrol_puani($kalem, ['gecti' => true, 'oran' => 1, 'bicim' => true, 'notlar' => $not], ['bicim' => 1, 'ad' => 0]);
+dogrula($a === 11 && str_ends_with($m, 'mantık doğru, 1 puan kesildi.'), 'bicim_kesintisi=1: 1 puan kesilir, neden yazılır');
+[$a, $m] = kontrol_puani($kalem, ['gecti' => true, 'oran' => 1, 'ad' => true, 'notlar' => ['Ad farkı: "btnHesapla" bulunamadı, aynı işi gören "button1" kullanıldı']], ['bicim' => 0, 'ad' => 2]);
+dogrula($a === 10 && str_contains($m, 'button1') && str_contains($m, '2 puan kesildi'), 'ad_kesintisi yalnızca o kontrolden düşülür');
+[$a, $m] = kontrol_puani($kalem, ['gecti' => false, 'oran' => 0, 'bicim' => true, 'mesaj' => 'yanlış'], ['bicim' => 1, 'ad' => 0]);
+dogrula($a === 0, 'kalan kontrolde biçim kesintisi eksiye düşürmez');
+
+$tCikti = ['bilgi' => ['bicim_kesintisi' => 0], 'olcutler' => [['no' => 'O1', 'baslik' => 'Çıktı', 'puan' => 10, 'tip' => 'otomatik', 'kalemler' => [
+    ['no' => 'S1', 'tur' => 'soru', 'tip' => 'cikti', 'puan' => 6, 'beklenen' => "1\n2\n3", 'metin' => '', 'tespit' => '', 'girdi' => '', 'hedef' => ''],
+    ['no' => 'S2', 'tur' => 'soru', 'tip' => 'coktan', 'puan' => 4, 'beklenen' => 'B', 'metin' => '', 'tespit' => '', 'girdi' => '', 'hedef' => 'A) x|B) y']]]]];
+$p = temrin_puanla($tCikti, [], ['S1' => '1, 2, 3', 'S2' => 'b) y'], null, gmdate('Y-m-d\TH:i:s\Z'));
+dogrula($p[0]['alinan'] === 10 && str_contains($p[0]['tespit'], 'S1 çıktı tahmini biçimi farklı'), 'çıktı tahmini "1, 2, 3" ve çoktan seçmeli "b) y" kabul edilir');
+$p = temrin_puanla($tCikti, [], ['S1' => '1 2 3 4', 'S2' => 'A'], null, gmdate('Y-m-d\TH:i:s\Z'));
+dogrula($p[0]['alinan'] === 0, 'yanlış çıktı tahmini ve yanlış seçenek puan almaz');
+
+$yeni = str_replace(['bilgi;temrin_no;;;;;;;3;', 'kod_yapisi;btnFor.Click;;for;', 'calistir;btnFor;txtN=5;lstSonuc=1|2|3|4|5;'],
+    ["bilgi;temrin_no;;;;;;;40;\r\nbilgi;bicim_kesintisi;;;;;;;1;\r\nbilgi;ogretmen_onayi;;;;;;;Evet;", 'kod_yapisi;btnFor.Click;;for|foreach veya while;', 'calistir;btnFor;"txtN=5 || txtN=2";"lstSonuc=1|2|3|4|5 || lstSonuc~=2";'], $csv);
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'csv' => $yeni]);
+dogrula($r['durum'] === 200 && $r['json']['temrin']['ogretmen_onayi'] === true, 'yeni CSV sözdizimi (veya, ||, ~=, kesinti, onay) kabul edilir');
+$TID2 = $r['json']['temrin']['temrin_id'] ?? 0;
+$bozuk = str_replace(['bilgi;temrin_no;;;;;;;3;', 'calistir;btnFor;txtN=5;lstSonuc=1|2|3|4|5;'], ['bilgi;temrin_no;;;;;;;41;', 'calistir;btnFor;"txtN=5 || txtN=2 || txtN=1";"lstSonuc=1 || lstSonuc=2";'], $csv);
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'csv' => $bozuk]);
+dogrula($r['durum'] === 400 && str_contains(implode(' ', $r['json']['hatalar']), 'durum sayıları farklı'), 'girdi ve beklenen durum sayısı uyuşmazlığı reddedilir');
+
+echo "Öğretmen onay modu\n";
+$post($OA, '/api/ogretmen.php', ['islem' => 'erisim', 'temrin_id' => $TID2, 'sinif' => '11 Donanım B', 'erisim_acik' => true]);
+$cal($S2, ['temrin_id' => $TID2]);
+$r = $post($S2, '/api/calisma.php', ['islem' => 'teslim', 'temrin_id' => $TID2, 'veri' => $veri, 'cevaplar' => ['S1' => 'koşul sonda', 'S2' => "1\n2\n3"]]);
+$kont = $r['json']['kontroller'];
+$tum = fn(bool $g) => ['derlendi' => true, 'sonuclar' => array_map(fn($k) => ['no' => $k['no'], 'gecti' => $g, 'oran' => $g ? 1 : 0, 'mesaj' => ''], $kont)];
+$post($S2, '/api/calisma.php', ['islem' => 'degerlendirme', 'temrin_id' => $TID2, 'sonuc' => $tum(true)]);
+$puanlaTum = fn() => $post($OA, '/api/ogretmen.php', ['islem' => 'duzelt', 'temrin_id' => $TID2, 'okul_no' => '2045', 'olcutler' => [
+    ['no' => 'O1', 'alinan' => 5], ['no' => 'O2', 'alinan' => 5], ['no' => 'O7', 'alinan' => 20, 'gerekce' => 'Açık uçlu cevap doğru']]]);
+$r = $puanlaTum();
+dogrula($r['json']['sonuc']['puan'] === 100 && $r['json']['sonuc']['kesin'] === false && $r['json']['sonuc']['onay']['onaylayan'] === null, 'onay modunda tam puan bile öğretmen onayı olmadan kesin değil');
+$ogrTablo = istek('/api/ogretmen.php?islem=tablo', ['oturum' => $OA])['json'];
+$hucre = array_values(array_filter($ogrTablo['ogrenciler'], fn($o) => $o['okul_no'] === '2045'))[0]['puanlar'][$TID2];
+dogrula($hucre['onay_bekliyor'] === true && $hucre['kesin'] === false, 'tabloda "öneri" (onay bekliyor) işaretli');
+$ogrSonuc = array_values(array_filter(istek('/api/ogrenci.php', ['oturum' => $S2])['json']['temrinler'], fn($t) => $t['temrin_id'] === $TID2))[0]['sonuc'];
+dogrula($ogrSonuc['onay']['gerekli'] === true && $ogrSonuc['onay']['onaylayan'] === null && $ogrSonuc['kesin'] === false, 'öğrenci onay beklendiğini görür');
+dogrula($post($S2, '/api/ogretmen.php', ['islem' => 'onayla', 'temrin_id' => $TID2, 'okul_no' => '2045'])['durum'] === 403, 'öğrenci onaylayamaz');
+dogrula($post($OB, '/api/ogretmen.php', ['islem' => 'onayla', 'temrin_id' => $TID2, 'okul_no' => '2045'])['durum'] === 403, 'başka sınıfın öğretmeni onaylayamaz');
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'onayla', 'temrin_id' => $TID2, 'okul_no' => '2045']);
+dogrula($r['durum'] === 200 && $r['json']['sonuc']['kesin'] === true && $r['json']['sonuc']['onay']['onaylayan'] === 'Öğretmen A', 'tek tıkla onay → kesin');
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'degerlendirme', 'temrin_id' => $TID2, 'okul_no' => '2045', 'sonuc' => $tum(true)]);
+dogrula($r['json']['sonuc']['kesin'] === true, 'yeniden değerlendirme puanı değiştirmezse onay korunur');
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'degerlendirme', 'temrin_id' => $TID2, 'okul_no' => '2045', 'sonuc' => $tum(false)]);
+dogrula($r['json']['sonuc']['kesin'] === false, 'yeniden değerlendirme puanı değiştirirse onay düşer');
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'onay_modu', 'temrin_id' => $TID2, 'acik' => false]);
+dogrula($r['durum'] === 200 && $r['json']['temrin']['ogretmen_onayi'] === false, 'öğretmen onay modunu kapatabilir');
+dogrula($post($OB, '/api/ogretmen.php', ['islem' => 'onay_modu', 'temrin_id' => $TID2, 'acik' => true])['json']['kod'] === 'BASKA_SINIF', 'başka sınıfın çalışması olan temrinin onay modu değiştirilemez');
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'onayla', 'temrin_id' => $TID2, 'okul_no' => '2045']);
+dogrula($r['durum'] === 400 && $r['json']['kod'] === 'ONAY_MODU_KAPALI', 'onay modu kapalıyken onay istenmez');
 
 echo "Temrin silme\n";
 $sil = fn(array $o, array $g) => $post($o, '/api/ogretmen.php', ['islem' => 'temrin_sil', 'temrin_id' => $TID] + $g);

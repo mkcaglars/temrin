@@ -61,3 +61,5 @@ details.temrin[open]>summary{border-bottom:1px solid var(--cizgi)}
 .ozet-puan{white-space:nowrap;display:flex;align-items:center;gap:6px}
 .ozet-puan b{font-size:18px}
 .arac-cubugu{justify-content:flex-end;margin-bottom:8px}
+.rozet.oneri{background:#e0e7ff;color:#3730a3;cursor:pointer}
+.gerekce{color:#3730a3;font-size:12px;margin-top:2px}

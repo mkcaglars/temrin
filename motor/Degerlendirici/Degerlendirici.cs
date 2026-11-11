@@ -78,8 +78,19 @@ namespace Temrin.Motor
             return sonuc;
         }
 
-        static KontrolSonucu Gecti() => new() { Gecti = true };
-        static KontrolSonucu Kaldi(string mesaj) => new() { Gecti = false, Mesaj = mesaj };
+        static KontrolSonucu Gecti() => new() { Gecti = true, Oran = 1 };
+        static KontrolSonucu Kaldi(string mesaj) => new() { Gecti = false, Oran = 0, Mesaj = mesaj };
+
+        /// <summary>Kısmi sonuç. Oran 1 ise geçti; değilse mesaj eksiği anlatır. Notlar kabul edilen farklardır.</summary>
+        static KontrolSonucu Oranli(double oran, string mesaj, List<string> notlar, bool bicim = false, bool ad = false)
+        {
+            oran = Math.Clamp(oran, 0, 1);
+            return new KontrolSonucu
+            {
+                Oran = Math.Round(oran, 4), Gecti = oran >= 1, Mesaj = oran >= 1 ? "" : mesaj,
+                Notlar = notlar.Distinct().ToList(), BicimFarki = bicim, AdFarki = ad,
+            };
+        }
 
         static KontrolSonucu Uygula(Kontrol k, KodYapisi yapi, BuildResult derleme)
         {
@@ -92,17 +103,22 @@ namespace Temrin.Motor
 
                 case "kod_yapisi":
                 {
-                    var dugumler = yapi.Hedef(k.Hedef, out string neden);
+                    var notlar = new List<string>();
+                    var dugumler = HedefDugumleri(k.Hedef, yapi, derleme, notlar, out string neden);
                     if (dugumler == null) return Kaldi(neden);
-                    var eksik = KodYapisi.EksikYapilar(dugumler, k.Beklenen);
-                    return eksik.Count == 0 ? Gecti() : Kaldi($"{HedefAdi(k.Hedef)} içinde {string.Join(", ", eksik)} yok.");
+                    var (grup, eksik) = KodYapisi.YapiDenetle(dugumler, k.Beklenen);
+                    double oran = grup == 0 ? 1 : (double)(grup - eksik.Count) / grup;
+                    return Oranli(oran, $"{HedefAdi(k.Hedef)} içinde {string.Join(", ", eksik)} yok.", notlar, ad: notlar.Count > 0);
                 }
 
                 case "kod_icerir":
                 {
-                    var dugumler = yapi.Hedef(k.Hedef, out string neden);
+                    var notlar = new List<string>();
+                    var dugumler = HedefDugumleri(k.Hedef, yapi, derleme, notlar, out string neden);
                     if (dugumler == null) return Kaldi(neden);
-                    return KodYapisi.Iceriyor(dugumler, k.Beklenen) ? Gecti() : Kaldi($"{HedefAdi(k.Hedef)} içinde \"{k.Beklenen}\" yok.");
+                    return KodYapisi.Iceriyor(dugumler, k.Beklenen)
+                        ? Oranli(1, "", notlar, ad: notlar.Count > 0)
+                        : Kaldi($"{HedefAdi(k.Hedef)} içinde \"{k.Beklenen.Trim()}\" yok.");
                 }
 
                 case "kontrol_var":
@@ -110,20 +126,29 @@ namespace Temrin.Motor
                     if (derleme?.Success != true) return Kaldi(derlenmedi);
                     var (form, arayuz) = Baslat(derleme);
                     if (form == null) return Kaldi(BaslamaHatasi(arayuz));
+                    var adlar = Liste(k.Hedef).ToList();
+                    if (adlar.Count == 0) return Gecti();
+                    string tur = k.Beklenen.Trim();
                     var eksik = new List<string>();
-                    foreach (string ad in Liste(k.Hedef))
+                    var notlar = new List<string>();
+                    double puan = 0;
+                    foreach (string ad in adlar)
                     {
-                        var c = Bul(form, ad);
+                        var c = Coz(form, ad, tur, adlar, out var nasil, yapi);
                         if (c == null) eksik.Add($"{ad} adlı kontrol yok");
-                        else if (k.Beklenen.Trim() != "" && !TurUyar(c, k.Beklenen.Trim())) eksik.Add($"{ad} bir {k.Beklenen.Trim()} değil ({c.GetType().Name})");
+                        else if (tur != "" && !TurUyar(c, tur)) eksik.Add($"{ad} bir {tur} değil ({c.GetType().Name})");
+                        else if (nasil == AdEslesme.Tam) puan += 1;
+                        else if (nasil == AdEslesme.Yazim) { puan += 1; notlar.Add($"Ad yazımı farklı: \"{ad}\" yerine \"{c.Name}\""); }
+                        else { puan += 0.5; eksik.Add($"{ad} adı kullanılmamış (aynı işi gören \"{c.Name}\" kabul edildi, yarım puan)"); }
                     }
-                    return eksik.Count == 0 ? Gecti() : Kaldi(string.Join("; ", eksik) + ".");
+                    // Kontrol adı bu kontrolün kendi konusu: ad farkı kesintisi oranla verilir, ayrıca kesilmez.
+                    return Oranli(puan / adlar.Count, string.Join("; ", eksik) + ".", notlar);
                 }
 
                 case "calistir":
                 {
                     if (derleme?.Success != true) return Kaldi(derlenmedi);
-                    return Calistir(k, derleme);
+                    return Calistir(k, derleme, yapi);
                 }
 
                 default:
@@ -134,6 +159,10 @@ namespace Temrin.Motor
         static string HedefAdi(string hedef) => string.IsNullOrWhiteSpace(hedef) || hedef.Trim() == "*" ? "Proje" : hedef.Trim();
 
         static IEnumerable<string> Liste(string s) => (s ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        /// <summary>"girdi1 || girdi2" → durumlar. Boşsa tek boş durum.</summary>
+        static List<string> Durumlar(string s) =>
+            string.IsNullOrWhiteSpace(s) ? new List<string> { "" } : s.Split("||").Select(x => x.Trim()).ToList();
 
         static bool TurUyar(object nesne, string tur)
         {
@@ -146,6 +175,112 @@ namespace Temrin.Motor
             string.Equals(ad, "this", StringComparison.Ordinal) || string.Equals(ad, form.Name, StringComparison.Ordinal)
                 ? form
                 : form.Controls.Find(ad, true).FirstOrDefault();
+
+        enum AdEslesme { Tam, Yazim, Tur }
+
+        /// <summary>Formun bu adlı alanındaki kontrol (tasarımcının ürettiği "private Button btnFor;" alanı).</summary>
+        static Control Alan(Form form, string ad) =>
+            form.GetType().GetField(ad, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                ?.GetValue(form) as Control;
+
+        static IEnumerable<Control> Tumu(Control kok)
+        {
+            foreach (Control c in kok.Controls)
+            {
+                yield return c;
+                foreach (var alt in Tumu(c)) yield return alt;
+            }
+        }
+
+        /// <summary>Kontrol adı öneklerinden beklenen tür (btnHesapla → Button).</summary>
+        static readonly Dictionary<string, Type> OnekTurleri = new(StringComparer.Ordinal)
+        {
+            ["txt"] = typeof(TextBoxBase), ["tb"] = typeof(TextBoxBase), ["msk"] = typeof(TextBoxBase), ["rtb"] = typeof(TextBoxBase),
+            ["lbl"] = typeof(Label), ["btn"] = typeof(Button), ["lst"] = typeof(ListBox), ["lb"] = typeof(ListBox),
+            ["cmb"] = typeof(ComboBox), ["cb"] = typeof(ComboBox), ["chk"] = typeof(CheckBox), ["rdb"] = typeof(RadioButton),
+            ["rb"] = typeof(RadioButton), ["nud"] = typeof(NumericUpDown), ["dgv"] = typeof(DataGridView), ["grp"] = typeof(GroupBox),
+            ["gb"] = typeof(GroupBox), ["pnl"] = typeof(Panel), ["dtp"] = typeof(DateTimePicker), ["pb"] = typeof(PictureBox),
+        };
+
+        static Type TurBul(string ad, string tur)
+        {
+            if (!string.IsNullOrWhiteSpace(tur))
+            {
+                var t = typeof(Control).Assembly.GetTypes().FirstOrDefault(x => typeof(Control).IsAssignableFrom(x) && string.Equals(x.Name, tur.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (t != null) return t;
+            }
+            var (onek, _) = Esneklik.AdParcala(ad);
+            return OnekTurleri.TryGetValue(onek, out var o) ? o : null;
+        }
+
+        /// <summary>
+        /// Kontrolü bulur. Sıra: tam ad → yalnızca yazımı farklı ad (büyük-küçük harf, _, Türkçe harf) →
+        /// adın önekinden anlaşılan türde, metni ya da adı adın köküyle uyan tek kontrol → formda o türden tek kontrol.
+        /// Aynı kontrolde adı geçen diğer kontroller (digerAdlar) yedek olarak seçilmez.
+        /// </summary>
+        static Control Coz(Form form, string ad, string tur, IEnumerable<string> digerAdlar, out AdEslesme nasil, KodYapisi yapi = null)
+        {
+            nasil = AdEslesme.Tam;
+            var c = Bul(form, ad);
+            if (c != null) return c;
+            // Koddaki alan adı istenen ad ama Name özelliği farklı (btnBreak alanı, Name = "btnKes").
+            c = Alan(form, ad);
+            if (c != null) { nasil = AdEslesme.Yazim; return c; }
+
+            var dolu = new HashSet<string>(digerAdlar.Where(x => x != ad && Bul(form, x) != null), StringComparer.Ordinal);
+            var hepsi = Tumu(form).Where(x => !dolu.Contains(x.Name)).ToList();
+            string n = Esneklik.AdNormal(ad);
+            var yazim = hepsi.Where(x => Esneklik.AdNormal(x.Name) == n).ToList();
+            if (yazim.Count == 1) { nasil = AdEslesme.Yazim; return yazim[0]; }
+
+            var t = TurBul(ad, tur);
+            if (t == null) return null;
+            var ayniTur = hepsi.Where(t.IsInstanceOfType).ToList();
+            string kok = Esneklik.AdNormal(Esneklik.AdParcala(ad).kok);
+            if (kok.Length >= 2)
+            {
+                var uyan = ayniTur.Where(x => Esneklik.AdNormal(x.Text) == kok || Esneklik.AdNormal(x.Name).Contains(kok, StringComparison.Ordinal)).ToList();
+                if (uyan.Count == 1) { nasil = AdEslesme.Tur; return uyan[0]; }
+                // Olay işlevine göre: adı farklı düğme hâlâ btnBreak_Click gibi adın kökünü taşıyan metoda bağlıysa.
+                if (yapi != null)
+                {
+                    var metotla = yapi.OlayMetotlari("Click").Where(b => Esneklik.AdNormal(b.metot).Contains(kok, StringComparison.Ordinal))
+                        .Select(b => b.nesne).Distinct().ToList();
+                    var olayla = ayniTur.Where(x => metotla.Any(m => m == x.Name || ReferenceEquals(Alan(form, m), x))).ToList();
+                    if (olayla.Count == 1) { nasil = AdEslesme.Tur; return olayla[0]; }
+                }
+            }
+            if (ayniTur.Count == 1) { nasil = AdEslesme.Tur; return ayniTur[0]; }
+            return null;
+        }
+
+        /// <summary>
+        /// kod_yapisi / kod_icerir hedefinin kod düğümleri. Olay bağlantısı adla bulunamazsa, önce yazımı farklı ada,
+        /// proje derleniyorsa formdaki aynı türden kontrole bakılır; bulunursa "ad farkı" notu düşülür.
+        /// </summary>
+        static List<Microsoft.CodeAnalysis.SyntaxNode> HedefDugumleri(string hedef, KodYapisi yapi, BuildResult derleme, List<string> notlar, out string neden)
+        {
+            var d = yapi.Hedef(hedef, out neden);
+            if (d != null) return d;
+            hedef = (hedef ?? "").Trim();
+            int nokta = hedef.LastIndexOf('.');
+            if (nokta <= 0) return null;
+            string ad = hedef[..nokta], olay = hedef[(nokta + 1)..];
+
+            var adaylar = yapi.OlayBaglantiAdlari(olay).Where(x => Esneklik.AdNormal(x) == Esneklik.AdNormal(ad)).Distinct().ToList();
+            string bulunan = adaylar.Count == 1 ? adaylar[0] : null;
+            if (bulunan == null && derleme?.Success == true)
+            {
+                var (form, _) = Baslat(derleme);
+                var c = form == null ? null : Coz(form, ad, null, Array.Empty<string>(), out _, yapi);
+                if (c != null && c.Name != ad) bulunan = c.Name;
+            }
+            if (bulunan == null) return null;
+            d = yapi.Hedef($"{bulunan}.{olay}", out _);
+            if (d == null) return null;
+            notlar.Add($"Ad farkı: \"{ad}\" yerine \"{bulunan}\" kullanılmış");
+            return d;
+        }
 
         /// <summary>Programı baştan başlatır, ilk açılan formu döndürür.</summary>
         static (Form form, KayitArayuzu arayuz) Baslat(BuildResult derleme)
@@ -163,66 +298,120 @@ namespace Temrin.Motor
             : !string.IsNullOrEmpty(a.Bitis) && a.Bitis != "Program tamamlandı." ? "Program açılamadı: " + a.Bitis
             : "Program bir form açmadı.";
 
-        static KontrolSonucu Calistir(Kontrol k, BuildResult derleme)
+        /// <summary>
+        /// Çalıştırma testi. Girdi ve beklenen "||" ile birden çok duruma ayrılabilir (girdi1 || girdi2 → beklenen1 || beklenen2);
+        /// her durum programı baştan başlatır ve ayrı değerlendirilir. Oran = geçen durum / durum sayısı.
+        /// </summary>
+        static KontrolSonucu Calistir(Kontrol k, BuildResult derleme, KodYapisi yapi)
         {
+            var girdiler = Durumlar(k.Girdi);
+            var beklenenler = Durumlar(k.Beklenen);
+            if (girdiler.Count > 1 && beklenenler.Count > 1 && girdiler.Count != beklenenler.Count)
+                return Kaldi($"Girdi ({girdiler.Count}) ve beklenen ({beklenenler.Count}) durum sayıları farklı.");
+            int n = Math.Max(girdiler.Count, beklenenler.Count);
+            var notlar = new List<string>();
+            var hatalar = new List<string>();
+            bool bicim = false, ad = false;
+            int gecen = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var d = Durum(k.Hedef, girdiler.Count == 1 ? girdiler[0] : girdiler[i], beklenenler.Count == 1 ? beklenenler[0] : beklenenler[i], derleme, yapi);
+                if (d.uyum == Uyum.Kaldi) hatalar.Add(d.mesaj); else gecen++;
+                bicim |= d.uyum == Uyum.Bicim;
+                ad |= d.adFarki;
+                notlar.AddRange(d.notlar);
+            }
+            var s = Oranli((double)gecen / n, string.Join(" ", hatalar.Distinct()), notlar, bicim, ad);
+            s.Durum = n;
+            s.Gecen = gecen;
+            return s;
+        }
+
+        static (Uyum uyum, string mesaj, List<string> notlar, bool adFarki) Durum(string hedef, string girdi, string beklenen, BuildResult derleme, KodYapisi yapi)
+        {
+            var notlar = new List<string>();
+            bool adFarki = false;
             var (form, a) = Baslat(derleme);
-            if (form == null) return Kaldi(BaslamaHatasi(a));
+            if (form == null) return (Uyum.Kaldi, BaslamaHatasi(a), notlar, false);
             int hataBaslangic = a.Hatalar.Count;
+            string girdiBilgi = string.IsNullOrWhiteSpace(girdi) ? "" : $" ({girdi.Trim()})";
+
+            // Bu durumda adı geçen bütün kontroller: yedek eşleştirmede birbirinin yerine seçilmesinler.
+            var adlar = Liste(hedef).Concat(Liste(girdi).Select(x => x.Split('=')[0].Trim()))
+                .Concat(Liste(beklenen).Select(x => Esneklik.KosulAyir(x, out var ad, out _, out _) ? ad : "")).Where(x => x != "").ToList();
+
+            Control Kontrol(string ad, string tur)
+            {
+                var c = Coz(form, ad, tur, adlar, out var nasil, yapi);
+                if (c != null && nasil != AdEslesme.Tam)
+                {
+                    adFarki = true;
+                    notlar.Add(nasil == AdEslesme.Yazim
+                        ? $"Ad yazımı farklı: \"{ad}\" yerine \"{c.Name}\""
+                        : $"Ad farkı: \"{ad}\" bulunamadı, aynı işi gören \"{c.Name}\" kullanıldı");
+                }
+                return c;
+            }
 
             // Girdiler: "txtN=5; txtM=2"
-            foreach (string atama in Liste(k.Girdi))
+            foreach (string atama in Liste(girdi))
             {
                 int esit = atama.IndexOf('=');
-                if (esit <= 0) return Kaldi($"Girdi biçimi hatalı: {atama}");
+                if (esit <= 0) return (Uyum.Kaldi, $"Girdi biçimi hatalı: {atama}", notlar, adFarki);
                 string ad = atama[..esit].Trim(), deger = atama[(esit + 1)..].Trim();
-                var c = Bul(form, ad);
-                if (c == null) return Kaldi($"{ad} adlı kontrol yok.");
+                var c = Kontrol(ad, null);
+                if (c == null) return (Uyum.Kaldi, $"{ad} adlı kontrol yok.", notlar, adFarki);
                 Ui.Execute(() => DegerAta(c, deger));
                 a.DiyaloglariKapat();
             }
 
             // Düğmeler sırayla: "btnFor;btnFor"
-            foreach (string ad in Liste(k.Hedef))
+            foreach (string ad in Liste(hedef))
             {
-                var c = Bul(form, ad);
-                if (c == null) return Kaldi($"{ad} adlı düğme yok.");
+                var c = Kontrol(ad, null);
+                if (c == null) return (Uyum.Kaldi, $"{ad} adlı düğme yok.", notlar, adFarki);
                 Ui.Execute(() => Tikla(c));
                 a.DiyaloglariKapat();
-                if (Durdu(a, out string neden)) return Kaldi($"{ad} tıklanınca program durdu: {neden}");
-                if (a.Hatalar.Count > hataBaslangic) return Kaldi($"{ad} tıklanınca hata oluştu: {a.Hatalar[hataBaslangic]}");
+                if (Durdu(a, out string neden)) return (Uyum.Kaldi, $"{ad} tıklanınca program durdu: {neden}", notlar, adFarki);
+                if (a.Hatalar.Count > hataBaslangic) return (Uyum.Kaldi, $"{ad} tıklanınca hata oluştu: {a.Hatalar[hataBaslangic]}{girdiBilgi}.", notlar, adFarki);
             }
 
-            // Beklenen: "lstSonuc=1|2|3; lblSonuc=Pozitif; MessageBox=Merhaba; hatasiz"
+            // Beklenen: "lstSonuc=1|2|3; lblSonuc=Pozitif; MessageBox~=72,5; lblAd==Ali; hatasiz"
             var farklar = new List<string>();
-            foreach (string kosul in Liste(k.Beklenen))
+            bool bicim = false;
+            foreach (string kosul in Liste(beklenen))
             {
                 if (string.Equals(kosul, "hatasiz", StringComparison.OrdinalIgnoreCase)) continue; // hatalar yukarıda yakalandı
-                int esit = kosul.IndexOf('=');
-                if (esit <= 0) return Kaldi($"Beklenen biçimi hatalı: {kosul}");
-                string ad = kosul[..esit].Trim(), beklenen = kosul[(esit + 1)..].Trim();
+                if (!Esneklik.KosulAyir(kosul, out string ad, out var mod, out string bekl)) return (Uyum.Kaldi, $"Beklenen biçimi hatalı: {kosul}", notlar, adFarki);
                 if (string.Equals(ad, "MessageBox", StringComparison.OrdinalIgnoreCase))
                 {
                     string son = a.Mesajlar.LastOrDefault();
-                    if (son == null) farklar.Add($"mesaj kutusu gösterilmedi (beklenen \"{beklenen}\")");
-                    else if (!Esit(son, beklenen)) farklar.Add($"mesaj kutusu: beklenen \"{beklenen}\", gösterilen \"{son.Trim()}\"");
+                    var u = son == null ? Uyum.Kaldi : Esneklik.Karsilastir(bekl, son, mod);
+                    if (son == null) farklar.Add($"mesaj kutusu gösterilmedi (beklenen \"{bekl}\")");
+                    else if (u == Uyum.Kaldi) farklar.Add($"mesaj kutusu: beklenen \"{bekl}\", gösterilen \"{son.Trim()}\"");
+                    else if (u == Uyum.Bicim) { bicim = true; notlar.Add($"Mesaj biçimi farklı: beklenen \"{bekl}\", alınan \"{son.Trim()}\""); }
                     continue;
                 }
-                var c = Bul(form, ad);
+                var c = Kontrol(ad, null);
                 if (c == null) { farklar.Add($"{ad} adlı kontrol yok"); continue; }
                 var ogeler = Ogeler(c);
                 if (ogeler != null)
                 {
-                    var beklenenOgeler = beklenen == "" ? new List<string>() : beklenen.Split('|').Select(x => x.Trim()).ToList();
-                    if (!ogeler.SequenceEqual(beklenenOgeler, StringComparer.Ordinal))
-                        farklar.Add($"{ad}: beklenen [{string.Join(", ", beklenenOgeler)}], bulunan [{string.Join(", ", ogeler)}]");
+                    var beklenenOgeler = bekl == "" ? new List<string>() : bekl.Split('|').Select(x => x.Trim()).ToList();
+                    var u = Esneklik.ListeKarsilastir(beklenenOgeler, ogeler, mod);
+                    if (u == Uyum.Kaldi) farklar.Add($"{ad}: beklenen [{string.Join(", ", beklenenOgeler)}], bulunan [{string.Join(", ", ogeler)}]");
+                    else if (u == Uyum.Bicim) { bicim = true; notlar.Add($"Liste biçimi farklı: beklenen [{string.Join(", ", beklenenOgeler)}], alınan [{string.Join(", ", ogeler)}]"); }
                 }
-                else if (!Esit(c.Text, beklenen))
+                else
                 {
-                    farklar.Add($"{ad}: beklenen \"{beklenen}\", bulunan \"{(c.Text ?? "").Trim()}\"");
+                    string metin = (c.Text ?? "").Trim();
+                    var u = Esneklik.Karsilastir(bekl, metin, mod);
+                    if (u == Uyum.Kaldi) farklar.Add($"{ad}: beklenen \"{bekl}\", bulunan \"{metin}\"");
+                    else if (u == Uyum.Bicim) { bicim = true; notlar.Add($"Çıktı biçimi farklı: beklenen \"{bekl}\", alınan \"{metin}\""); }
                 }
             }
-            string girdi = string.IsNullOrWhiteSpace(k.Girdi) ? "" : $" ({k.Girdi.Trim()})";
-            return farklar.Count == 0 ? Gecti() : Kaldi(string.Join("; ", farklar) + girdi + ".");
+            if (farklar.Count > 0) return (Uyum.Kaldi, string.Join("; ", farklar) + girdiBilgi + ".", notlar.Where(x => x.StartsWith("Ad")).ToList(), adFarki);
+            return (bicim ? Uyum.Bicim : Uyum.Tam, "", notlar, adFarki);
         }
 
         static bool Durdu(KayitArayuzu a, out string neden)
@@ -230,8 +419,6 @@ namespace Temrin.Motor
             neden = a.Bitis;
             return !string.IsNullOrEmpty(a.Bitis) && a.Bitis != "Program tamamlandı.";
         }
-
-        static bool Esit(string a, string b) => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.Ordinal);
 
         static void DegerAta(Control c, string deger)
         {

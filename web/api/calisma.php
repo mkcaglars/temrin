@@ -85,9 +85,10 @@ function calisma_puanla(array $t, array $c): void
         foreach ($d['sonuclar'] ?? [] as $s) $kontrol[(string)$s['no']] = $s;
     }
     $onceki = sonuc_getir((int)$t['id'], $c['okul_no']);
-    $oncekiOlcutler = $onceki ? (json_decode($onceki['detay'], true)['olcutler'] ?? []) : [];
-    $olcutler = temrin_puanla($t['tanim_dizi'], $kontrol, json_decode($c['cevaplar'] ?? '{}', true) ?: [], $c['baslama'], $c['teslim_zamani'], $oncekiOlcutler);
-    sonuc_kaydet((int)$t['id'], $t['ders_id'], ['okul_no' => $c['okul_no'], 'ad' => $c['ad'], 'sinif' => $c['sinif']], $olcutler, $c['teslim_zamani']);
+    $oncekiDetay = $onceki ? json_decode($onceki['detay'], true) : null;
+    $olcutler = temrin_puanla($t['tanim_dizi'], $kontrol, json_decode($c['cevaplar'] ?? '{}', true) ?: [], $c['baslama'], $c['teslim_zamani'], $oncekiDetay['olcutler'] ?? []);
+    sonuc_kaydet((int)$t['id'], $t['ders_id'], ['okul_no' => $c['okul_no'], 'ad' => $c['ad'], 'sinif' => $c['sinif']], $olcutler, $c['teslim_zamani'],
+        onay_hesapla($t['tanim_dizi'], $oncekiDetay, $olcutler));
 }
 
 try {

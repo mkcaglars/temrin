@@ -106,10 +106,11 @@ Ardından değişikliği Temrin'e commit edip `main`'e gönderin; Actions test e
 
 ### Puanlama
 
-- **Kontroller:** Geçerse tam puan, kalırsa 0. Tespit, CSV'deki `tespit` metnidir; boşsa motorun mesajıdır (ör. `lstSonuc: beklenen [1, 2, 3], bulunan [1, 2, 3, 1, 2, 3] (txtN=3)`).
+- **Kontroller:** Mantık önce. Çıktılar esnek karşılaştırılır: boşluk, büyük-küçük harf, ayraç, ondalık virgül/nokta ve ek metin farkı puan kırmaz, sayılar birebir aynı olmalıdır. Kontrolün puanı alt parçalarına bölünür (adlar, `kod_yapisi` grupları, `calistir` durumları) ve geçen oranla verilir. Biçim ve ad farkları Tespit'e not olarak yazılır, kesinti CSV'deki `bicim_kesintisi` / `ad_kesintisi` kadardır (varsayılan 0). Tespit, CSV'deki `tespit` metnidir; boşsa motorun mesajıdır (ör. `lstSonuc: beklenen [1, 2, 3], bulunan [1, 2, 3, 1, 2, 3] (txtN=3)`). Ayrıntılar: [`sablon/README.md`](sablon/README.md).
 - **Sorular:** Çıktı tahmini ve çoktan seçmeli sorular sunucuda puanlanır; cevap anahtarları teslimden önce öğrenciye gönderilmez. Açık uçlu soruları öğretmen puanlar.
 - **Süre:** `sure_dk` içinde teslim edilirse tam puan, aşılırsa 0 ve "Süre aşıldı" tespiti. Öğretmen düzeltebilir.
 - **Ölçüt puanı:** Altındaki kalemlerin toplamıdır. Puanlanmamış kalem varsa ölçüt "bekliyor" kalır ve temrin puanı **kesin** olmaz.
+- **Öğretmen onayı (isteğe bağlı):** Temrinde açıksa otomatik puan "öneri"dir; öğretmen puan penceresinde **Onayla** ile kesinleştirir ya da değiştirir. Otomatik ölçütte önerilenden farklı puan için gerekçe zorunludur ve öğrenciye gösterilir.
 - **Öğretmenin girdiği puan korunur:** Öğretmen bir ölçütü elle puanladıysa, yeniden değerlendirme o ölçütün puanını değiştirmez.
 
 ### Değerlendirmenin güvenilirliği
@@ -181,19 +182,19 @@ Ortalamalara yalnızca kesinleşmiş puanlar girer. Sınıf ortalaması, öğren
 
 ## Testler
 
-Test motoru (C#, 12 test: Temrin 3 CSV'si doğru ve hatalı çözümlere uygulanır):
+Test motoru (C#, 57 test: Temrin 3 CSV'si doğru ve hatalı çözümlere uygulanır; esnek karşılaştırma vektörleri, aynı doğru çözümün biçim varyasyonları ve yanlış mantıklı çözümler):
 
 ```bash
 dotnet test motor/Testler
 ```
 
-Sunucu (PHP, 123 senaryo: giriş, yetki sınırları, CSV yükleme/doğrulama, çalışma, teslim, değerlendirme, doğrulama, puan CSV'si):
+Sunucu (PHP, 147 senaryo: giriş, yetki sınırları, CSV yükleme/doğrulama, çalışma, teslim, değerlendirme, kısmi puan ve kesinti, öğretmen onayı, doğrulama, puan CSV'si):
 
 ```bash
 php tests/sunucu_testi.php
 ```
 
-Uçtan uca tarayıcı testi (Playwright, 27 adım). Önce `./build.sh` çalıştırılmış olmalı:
+Uçtan uca tarayıcı testi (Playwright, 30 adım). Önce `./build.sh` çalıştırılmış olmalı:
 
 ```bash
 node tests/tarayici_testi.js
@@ -204,7 +205,7 @@ Var olan bir kuruluma (ör. Apache, boş veritabanıyla) karşı çalıştırmak
 Tarayıcı testinin adımları:
 1. Öğretmen CSV'yi arayüzden yükler, hatalı CSV'nin reddini görür, temrini açar.
 2. İki öğrenci (doğru ve hatalı çözüm) çalışıp teslim eder; test öğrenci tarayıcısında çalışır.
-3. Öğretmen eksik notları girer, teslimleri doğrular, projeyi salt okunur açar, puan CSV'sini indirir, temrin sayfalarını açar ve temrini TEMRİN SİL onayıyla siler.
+3. Öğretmen eksik notları girer, teslimleri doğrular, projeyi salt okunur açar, puan CSV'sini indirir, temrin sayfalarını açar, öğretmen onayını açar ve temrini TEMRİN SİL onayıyla siler.
 
 ## Canlı deneme listesi
 

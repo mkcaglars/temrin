@@ -173,12 +173,14 @@ class TemrinPaneli {
     return h('section', { class: 'tp-sonuc' },
       h('h3', {}, 'Sonuç'),
       h('div', { class: 'tp-puan' }, h('span', { class: 'buyuk' }, s.puan ?? '–'), ' / 100 ',
-        s.kesin ? null : h('span', { class: 'rozet' }, 'Öğretmen puanlaması bekleniyor')),
+        s.kesin ? null : h('span', { class: 'rozet' }, s.onay?.gerekli && !s.onay.onaylayan && s.olcutler.every((o) => o.alinan !== null)
+          ? 'Öğretmen onayı bekleniyor' : 'Öğretmen puanlaması bekleniyor')),
       h('table', { class: 'tp-tablo' },
         h('thead', {}, h('tr', {}, h('th', {}, 'Değerlendirme'), h('th', { class: 'sayi' }, 'Puan'), h('th', { class: 'sayi' }, 'Alınan'))),
         h('tbody', {}, s.olcutler.flatMap((o) => [
           h('tr', {}, h('td', {}, o.baslik), h('td', { class: 'sayi' }, o.puan), h('td', { class: 'sayi' }, o.alinan ?? h('span', { class: 'rozet' }, 'bekliyor'))),
           o.tespit ? h('tr', { class: 'tp-tespit' }, h('td', { colspan: 3 }, '↳ ' + o.tespit)) : null,
+          o.gerekce ? h('tr', { class: 'tp-tespit' }, h('td', { colspan: 3 }, '↳ Öğretmen: ' + o.gerekce)) : null,
         ]))));
   }
 

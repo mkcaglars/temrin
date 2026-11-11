@@ -17,6 +17,9 @@
 //        çalışma ya da teslim varsa reddedilir (öğretmen başka sınıfın verisini silemez).
 //   POST {"islem": "cikti_kaydet", "temrin_id": 1, "ciktilar": {"S2": "1\n2\n3"}}
 //   POST {"islem": "degerlendirme", "temrin_id": 1, "okul_no": "3268", "sonuc": {...motor sonucu...}}
+//   POST {"islem": "onayla", "temrin_id": 1, "okul_no": "3268"}            (öğretmen onay modu: öneriyi onayla)
+//   POST {"islem": "onay_modu", "temrin_id": 1, "acik": true}               (temrinde öğretmen onayını aç/kapat)
+//   duzelt: ölçüt başına "gerekce" (sistem önerisinden farklı puanda zorunlu) ve isteğe bağlı "onayla": true
 //   POST istekleri X-CSRF-Token başlığı ister.
 declare(strict_types=1);
 
@@ -74,6 +77,28 @@ function calisma_sayisi(int $temrinId): int
     return (int)$st->fetchColumn();
 }
 
+/**
+ * Temrin dersin tüm öğretmenlerince kullanılır: başka öğretmenin sınıfında çalışma ya da teslim varsa
+ * temrin silinemez ve ayarı değiştirilemez (öğretmen başka sınıfın verisini etkileyemez).
+ */
+function baska_sinif_kontrol(array $k, int $temrinId, string $ne): void
+{
+    $st = db()->prepare('SELECT DISTINCT sinif FROM (SELECT sinif FROM calismalar WHERE temrin_id = ? UNION SELECT sinif FROM sonuclar WHERE temrin_id = ?) s');
+    $st->execute([$temrinId, $temrinId]);
+    $baska = array_values(array_diff($st->fetchAll(PDO::FETCH_COLUMN), $k['siniflar']));
+    if ($baska) {
+        json_hata(403, 'BASKA_SINIF', "Bu temrinde başka sınıfların (" . implode(', ', $baska) . ") çalışmaları var; $ne yalnızca kendi sınıflarınızda çalışma varken değiştirilebilir.");
+    }
+}
+
+/** Onaydan önce bütün ölçütler puanlanmış olmalı. */
+function onay_kontrol(array $tanim, array $olcutler): void
+{
+    if (empty($tanim['bilgi']['ogretmen_onayi'])) json_hata(400, 'ONAY_MODU_KAPALI', 'Bu temrinde öğretmen onayı açık değil.');
+    $eksik = array_column(array_filter($olcutler, fn($o) => $o['alinan'] === null), 'baslik');
+    if ($eksik) json_hata(400, 'PUANLANMAMIS', 'Onaydan önce şu ölçütleri puanlayın: ' . implode(', ', $eksik) . '.');
+}
+
 /** Öğretmenin sınıflarındaki teslim edilmiş çalışma. */
 function yetkili_teslim(array $k, int $temrinId, string $okulNo): array
 {
@@ -100,6 +125,7 @@ function temrin_ozeti_ogretmen(array $t): array
             'olcut_sayisi' => count($tanim['olcutler'] ?? []), 'kontrol_sayisi' => count(tanim_kontroller($tanim)),
             'soru_sayisi' => count(tanim_ogrenciye($tanim)['sorular']), 'teslim_sayisi' => teslim_sayisi((int)$t['id']),
             'calisma_sayisi' => calisma_sayisi((int)$t['id']),
+            'ogretmen_onayi' => !empty($tanim['bilgi']['ogretmen_onayi']),
             'hesaplanacak_ciktilar' => tanim_hesaplanacak_ciktilar($tanim)];
 }
 
@@ -173,7 +199,8 @@ try {
             $t = ders_temrini($tamsayi('temrin_id'), $k['ders_id']);
             $r = yetkili_sonuc($k, (int)$t['id'], $metin('okul_no'));
             if (!is_array($g['olcutler'] ?? null)) json_hata(400, 'PARAMETRE_HATALI', 'olcutler gerekli.');
-            $olcutler = json_decode($r['detay'], true)['olcutler'] ?? [];
+            $oncekiDetay = json_decode($r['detay'], true) ?: [];
+            $olcutler = $oncekiDetay['olcutler'] ?? [];
             $sira = [];
             foreach ($olcutler as $i => $o) $sira[$o['no']] = $i;
             foreach ($g['olcutler'] as $d) {
@@ -191,10 +218,23 @@ try {
                     if (!is_string($d['tespit']) || mb_strlen($d['tespit']) > 500) json_hata(400, 'PARAMETRE_HATALI', "$no için tespit en fazla 500 karakter olmalı.");
                     $o['tespit'] = trim($d['tespit']);
                 }
+                if (array_key_exists('gerekce', $d)) {
+                    if (!is_string($d['gerekce']) || mb_strlen($d['gerekce']) > 300) json_hata(400, 'PARAMETRE_HATALI', "$no için gerekçe en fazla 300 karakter olmalı.");
+                    $o['gerekce'] = trim($d['gerekce']);
+                }
+                // Sistemin önerdiği puandan farklı puan verilirse gerekçe zorunlu (öğretmen ölçütlerinde öneri yoktur).
+                $oneri = $o['oneri'] ?? null;
+                if (($o['tip'] ?? '') !== 'ogretmen' && $oneri !== null && $o['alinan'] !== null && (int)$o['alinan'] !== (int)$oneri && trim($o['gerekce'] ?? '') === '') {
+                    json_hata(400, 'GEREKCE_GEREKLI', "{$o['baslik']}: önerilen puan $oneri, verilen {$o['alinan']}. Puanı neden değiştirdiğinizi gerekçe alanına yazın.");
+                }
                 $o['duzenleyen'] = 'ogretmen';
                 unset($o);
             }
-            sonuc_kaydet((int)$t['id'], $k['ders_id'], ['okul_no' => $r['okul_no'], 'ad' => $r['ad'], 'sinif' => $r['sinif']], $olcutler);
+            $tanim = json_decode($t['tanim'], true) ?: [];
+            $onayla = ($g['onayla'] ?? false) === true;
+            if ($onayla) onay_kontrol($tanim, $olcutler);
+            sonuc_kaydet((int)$t['id'], $k['ders_id'], ['okul_no' => $r['okul_no'], 'ad' => $r['ad'], 'sinif' => $r['sinif']], $olcutler, null,
+                onay_hesapla($tanim, $oncekiDetay, $olcutler, $onayla ? $k['ad'] : null));
             json_yanit(['durum' => 'tamam', 'sonuc' => sonuc_ozeti(sonuc_getir((int)$t['id'], $r['okul_no']), $t, true)]);
         }
 
@@ -231,14 +271,8 @@ try {
             if (!is_string($g['onay'] ?? null) || trim($g['onay']) !== TEMRIN_SIL_ONAYI) {
                 json_hata(400, 'ONAY_GEREKLI', 'Silmek için onay kutusuna ' . TEMRIN_SIL_ONAYI . ' yazın.');
             }
+            baska_sinif_kontrol($k, (int)$t['id'], 'Temrin');
             $pdo = db();
-            // Temrin dersin tüm öğretmenlerince kullanılır: başka sınıfın çalışması varsa silinmez.
-            $st = $pdo->prepare('SELECT DISTINCT sinif FROM (SELECT sinif FROM calismalar WHERE temrin_id = ? UNION SELECT sinif FROM sonuclar WHERE temrin_id = ?) s');
-            $st->execute([$t['id'], $t['id']]);
-            $baska = array_values(array_diff($st->fetchAll(PDO::FETCH_COLUMN), $k['siniflar']));
-            if ($baska) {
-                json_hata(403, 'BASKA_SINIF', 'Bu temrinde başka sınıfların (' . implode(', ', $baska) . ') çalışmaları var; yalnızca o sınıfların öğretmeni de silmeyi kabul ederse ya da çalışmalar kalmazsa silinebilir.');
-            }
             $pdo->beginTransaction();
             foreach (['DELETE FROM sonuclar WHERE temrin_id = ?', 'DELETE FROM calismalar WHERE temrin_id = ?',
                       'DELETE FROM temrin_erisim WHERE temrin_id = ?', 'DELETE FROM temrinler WHERE id = ?'] as $sql) {
@@ -279,10 +313,34 @@ try {
             $kontrol = [];
             foreach (json_decode($c['degerlendirme'], true)['sonuclar'] as $s) $kontrol[$s['no']] = $s;
             $onceki = sonuc_getir((int)$t['id'], $c['okul_no']);
+            $oncekiDetay = $onceki ? json_decode($onceki['detay'], true) : null;
             $olcutler = temrin_puanla($tanim, $kontrol, json_decode($c['cevaplar'] ?? '{}', true) ?: [], $c['baslama'], $c['teslim_zamani'],
-                $onceki ? (json_decode($onceki['detay'], true)['olcutler'] ?? []) : []);
-            sonuc_kaydet((int)$t['id'], $k['ders_id'], ['okul_no' => $c['okul_no'], 'ad' => $c['ad'], 'sinif' => $c['sinif']], $olcutler, $c['teslim_zamani']);
+                $oncekiDetay['olcutler'] ?? []);
+            sonuc_kaydet((int)$t['id'], $k['ders_id'], ['okul_no' => $c['okul_no'], 'ad' => $c['ad'], 'sinif' => $c['sinif']], $olcutler, $c['teslim_zamani'],
+                onay_hesapla($tanim, $oncekiDetay, $olcutler));
             json_yanit(['durum' => 'tamam', 'sonuc' => sonuc_ozeti(sonuc_getir((int)$t['id'], $c['okul_no']), $t, false)]);
+        }
+
+        if ($islem === 'onayla') {
+            $t = ders_temrini($tamsayi('temrin_id'), $k['ders_id']);
+            $r = yetkili_sonuc($k, (int)$t['id'], $metin('okul_no'));
+            $tanim = json_decode($t['tanim'], true) ?: [];
+            $detay = json_decode($r['detay'], true) ?: [];
+            $olcutler = $detay['olcutler'] ?? [];
+            onay_kontrol($tanim, $olcutler);
+            sonuc_kaydet((int)$t['id'], $k['ders_id'], ['okul_no' => $r['okul_no'], 'ad' => $r['ad'], 'sinif' => $r['sinif']], $olcutler, null,
+                onay_hesapla($tanim, $detay, $olcutler, $k['ad']));
+            json_yanit(['durum' => 'tamam', 'sonuc' => sonuc_ozeti(sonuc_getir((int)$t['id'], $r['okul_no']), $t, true)]);
+        }
+
+        if ($islem === 'onay_modu') {
+            $t = ders_temrini($tamsayi('temrin_id'), $k['ders_id']);
+            if (!is_bool($g['acik'] ?? null)) json_hata(400, 'PARAMETRE_HATALI', 'acik true/false olmalı.');
+            baska_sinif_kontrol($k, (int)$t['id'], 'Onay modu');
+            $tanim = json_decode($t['tanim'], true);
+            $tanim['bilgi']['ogretmen_onayi'] = $g['acik'];
+            db()->prepare('UPDATE temrinler SET tanim = ? WHERE id = ?')->execute([json_encode($tanim, JSON_UNESCAPED_UNICODE), $t['id']]);
+            json_yanit(['durum' => 'tamam', 'temrin' => temrin_ozeti_ogretmen(ders_temrini((int)$t['id'], $k['ders_id']))]);
         }
 
         if ($islem === 'erisim') {

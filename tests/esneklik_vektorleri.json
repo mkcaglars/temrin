@@ -1,0 +1,33 @@
+{
+  "aciklama": "Çıktı karşılaştırma kuralları. Hem motor (motor/Degerlendirici/Esneklik.cs) hem sunucu (web/lib/puanla.php) bu vektörlerle test edilir; iki taraf aynı sonucu vermeli. mod: esnek (=), kati (==), icerir (~=). sonuc: tam, bicim, kaldi.",
+  "vektorler": [
+    {"beklenen": "Ortalama: 72,5", "alinan": "Ortalama: 72,5", "mod": "esnek", "sonuc": "tam"},
+    {"beklenen": "Ortalama: 72,5", "alinan": "  Ortalama :   72,5 ", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "Ortalama: 72,5", "alinan": "ORTALAMA: 72,5", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "Ortalama: 72,5", "alinan": "ortalama=72.5", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "Ortalama: 72,5", "alinan": "Ortalama - 72.50", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "Ortalama: 72,5", "alinan": "Sınıfın not ortalaması: 72,5 puan", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "Ortalama: 72,5", "alinan": "Ortalama: 72,51", "mod": "esnek", "sonuc": "kaldi"},
+    {"beklenen": "Ortalama: 72,5", "alinan": "Ortalama: 145", "mod": "esnek", "sonuc": "kaldi"},
+    {"beklenen": "Ortalama: 72,5", "alinan": "Toplam: 290 Ortalama: 72,5", "mod": "esnek", "sonuc": "kaldi"},
+    {"beklenen": "Ortalama: 72,5", "alinan": "Toplam: 290 Ortalama: 72,5", "mod": "icerir", "sonuc": "tam"},
+    {"beklenen": "72,5", "alinan": "Ortalamanız 72.5", "mod": "icerir", "sonuc": "tam"},
+    {"beklenen": "72,5", "alinan": "172,5", "mod": "icerir", "sonuc": "kaldi"},
+    {"beklenen": "Ortalama: 72,5", "alinan": "ortalama=72.5", "mod": "kati", "sonuc": "kaldi"},
+    {"beklenen": "Geçti", "alinan": "GEÇTİ", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "Geçti", "alinan": "gecti", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "Kaldı", "alinan": "KALDI", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "Kaldı", "alinan": "Geçti", "mod": "esnek", "sonuc": "kaldi"},
+    {"beklenen": "Pozitif", "alinan": "Sayı pozitif", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "Pozitif", "alinan": "Pozitif değil", "mod": "esnek", "sonuc": "kaldi"},
+    {"beklenen": "Pozitif", "alinan": "Negatif", "mod": "esnek", "sonuc": "kaldi"},
+    {"beklenen": "-3", "alinan": "3", "mod": "esnek", "sonuc": "kaldi"},
+    {"beklenen": "Sonuç: -3", "alinan": "sonuç=-3", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "1\n2\n3", "alinan": "1 2 3", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "1\n2\n3", "alinan": "1, 2, 3", "mod": "esnek", "sonuc": "bicim"},
+    {"beklenen": "1\n2\n3", "alinan": "1\n2\n3\n4", "mod": "esnek", "sonuc": "kaldi"},
+    {"beklenen": "1\n2\n3", "alinan": "3\n2\n1", "mod": "esnek", "sonuc": "kaldi"},
+    {"beklenen": "", "alinan": "", "mod": "esnek", "sonuc": "tam"},
+    {"beklenen": "", "alinan": "0", "mod": "esnek", "sonuc": "kaldi"}
+  ]
+}
