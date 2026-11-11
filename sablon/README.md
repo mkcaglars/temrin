@@ -24,6 +24,10 @@ Bir temrin tek bir CSV dosyasıyla tanımlanır ve öğretmen ekranındaki **Tem
 
 **`bilgi`**: Temrin sayfasının başlığı. `no` sütununa alan adı, `metin` sütununa değer yazılır.
 Alanlar: `ders`, `temrin_no` (zorunlu, dersteki temrin numarası), `baslik` (tablolarda görünen kısa ad, ör. "Döngüler"; boşsa işlem konusu kullanılır), `sinif`, `islem_konusu`, `proje_adi` (öğrencinin projesinin adı ve isim alanı), `sure_dk` (süre ölçütü için), `ogretmen`.
+İsteğe bağlı puanlama alanları (yazılmazsa varsayılan geçerlidir):
+- `bicim_kesintisi` (varsayılan `0`): Mantık doğru ama çıktı biçimi farklı olduğunda kesilecek puan.
+- `ad_kesintisi` (varsayılan `0`): Kontrol adı farklı olup aynı işi gören kontrol bulunduğunda kesilecek puan.
+- `ogretmen_onayi` (`Evet`/`Hayır`, varsayılan `Hayır`): Otomatik puan yalnızca öneri olarak gösterilir, öğretmen onaylayınca kesinleşir.
 
 **`arac`** ve **`islem`**: "Kullanılan Araç / Gereç…" ve "Yapılacak İşlemler" maddeleri. Sıra `no` sütunundadır.
 
@@ -46,12 +50,14 @@ Kontrol ve sorular yalnızca `otomatik` ölçütlere bağlanabilir ve ölçüt s
 | `tip` | `hedef` | `girdi` | `beklenen` | Örnek |
 |---|---|---|---|---|
 | `derleme` | | | | Proje hatasız derleniyor mu |
-| `kontrol_var` | Kontrol adı (birden çoksa `;` ile) | | Kontrol türü | `txtN` → `TextBox` |
-| `kod_yapisi` | Olay (`btnFor.Click`), metot adı ya da `*` (tüm proje) | | `for`, `while`, `do` (do-while), `foreach`, `break`, `continue`, `if`, `else`, `else if`, `switch`, `try`, `return`. Birden çoksa `;` ile, hepsi aranır | `btnFor.Click` içinde `for` var mı |
-| `kod_icerir` | Olay ya da `*` | | Aranacak kod parçası (boşluklar önemsenmez) | `lstSonuc.Items.Clear()` |
+| `kontrol_var` | Kontrol adı (birden çoksa `;` ile; puan adlara bölünür) | | Kontrol türü | `txtN` → `TextBox` |
+| `kod_yapisi` | Olay (`btnFor.Click`), metot adı ya da `*` (tüm proje) | | `for`, `while`, `do` (do-while), `foreach`, `break`, `continue`, `if`, `else`, `else if`, `switch`, `try`, `return`. Birden çoksa `;` ile, hepsi aranır. Eşdeğerler `\|` ya da `veya` ile: `for\|foreach\|while` | `btnFor.Click` içinde `for` var mı |
+| `kod_icerir` | Olay ya da `*` | | Aranacak kod parçası (boşluklar ve `this.` önemsenmez). Eşdeğerler alt satırda ya da ` veya ` ile; `*` herhangi bir ad | `*.Items.Clear()` |
 | `calistir` | Basılacak düğmeler, sırayla (`btnFor;btnFor`) | Önce yazılacak değerler (`txtN=5; txtM=2`) | Sonuç (aşağıda) | `txtN=5` → `lstSonuc=1\|2\|3\|4\|5` |
 
 `calistir` için `beklenen` yazımı:
+- İşleç karşılaştırma biçimini seçer: `=` **esnek** (varsayılan), `==` **birebir**, `~=` **içerir**.
+- `||` ile birden çok durum yazılır. `girdi` sütununda da aynı sayıda durum olmalıdır, ör. `txtN=5 || txtN=2` → `lstSonuc=1|2|3|4|5 || lstSonuc=1|2`. Puan, geçen durum sayısıyla orantılıdır.
 - `lstSonuc=1|2|3`: ListBox/ComboBox öğeleri sırayla. `lstSonuc=` boş liste demektir.
 - `lblSonuc=Pozitif`: Label/TextBox metni
 - `MessageBox=Pozitif`: Gösterilen mesaj kutusunun metni
@@ -66,13 +72,34 @@ Olaylar `hedef` sütununda **düğme adıyla** (`btnFor.Click`) yazılır, metot
 - Bir tıklama 3 saniyeden uzun sürerse (sonsuz döngü) program durdurulur ve kontrol kalır.
 - Çalışma hatası (ör. `FormatException`) olursa kontrol kalır ve hata tespite yazılır.
 
+### Esnek karşılaştırma (mantık önce)
+
+`=` ile yazılan beklenen değerde biçim farkları puan kırmaz:
+- Boşluk, büyük-küçük harf (Türkçe İ/ı dahil) ve ayraçlar (`,` `.` `:` `-`) önemsenmez.
+- Ondalık virgül ve nokta aynıdır: `72,5` = `72.5`.
+- Ek metin kabul edilir: `Ortalama: 72,5` beklenirken `Sınıfın not ortalaması: 72,5 puan` geçer.
+- **Sayılar her zaman birebir aynı olmalıdır.** Fazla ya da eksik sayı, yanlış sayı ya da beklenmeyen "değil" sonucu yanlış yapar.
+
+Biçim farkı olan sonuç geçer; fark Tespit'e not olarak yazılır, `bicim_kesintisi` kadar puan kesilir. `~=` (içerir) modunda beklenen değerin çıktıda geçmesi yeter, not düşülmez. Eski davranış için `==` kullanın.
+
+### Kontrol adları
+
+Öğrenci kontrolün adını farklı yazarsa:
+- **Yazım farkı** (`lbl_sonuc`, `LblSonuc`): kontrol bulunur, tam puan, Tespit'e not düşülür.
+- **Ad farkı** (`button1`): sistem kontrolü önekten türüne, metnine, olay metodunun adına ya da formdaki tek kontrolden bulur. `calistir` ve `kod_yapisi` bulduğu kontrolle çalışır, Tespit'e "Ad farkı" yazılır, `ad_kesintisi` kadar kesilir. `kontrol_var` o ad için yarım puan verir.
+- Aynı türden birden çok aday varsa sistem tahmin etmez; kontrol bulunamadı sayılır.
+
+### Kısmi puan
+
+Kontrolün puanı alt parçalarına bölünür: `kontrol_var`'da adlar, `kod_yapisi`'nda `;` grupları, `calistir`'da `||` durumları. Puan = kontrol puanı × geçen oranı (yuvarlanır) − kesinti. Tam puan almayan her kontrolün nedeni Tespit'e yazılır.
+
 Derlenmeyen projede `kod_yapisi` ve `kod_icerir` yine çalışır (yalnızca kodu okurlar); `kontrol_var` ve `calistir` "derlenmediği için denetlenemedi" ile kalır.
 
 ## Soru tipleri
 
 | `tip` | `girdi` | `beklenen` | Puanlama |
 |---|---|---|---|
-| `cikti` | C# kodu (hücre içinde Alt+Enter ile alt satır). `Main` yoksa kod `Main` içine yerleştirilir | Beklenen çıktı. Boş bırakılırsa yüklemeden sonra Temrinler sekmesindeki **Çıktıları hesapla** düğmesi kodu çalıştırıp bulur | Otomatik: satırlar karşılaştırılır (satır sonundaki boşluklar ve sondaki boş satırlar önemsenmez) |
+| `cikti` | C# kodu (hücre içinde Alt+Enter ile alt satır). `Main` yoksa kod `Main` içine yerleştirilir | Beklenen çıktı. Boş bırakılırsa yüklemeden sonra Temrinler sekmesindeki **Çıktıları hesapla** düğmesi kodu çalıştırıp bulur | Otomatik, esnek: boşluk, büyük-küçük harf ve ayraç farkı önemsenmez; sayılar aynı olmalı |
 | `coktan` | Seçenekler: `A) …\|B) …\|C) …` | Doğru seçenek harfi | Otomatik |
 | `acik` | | İpucu anahtar kelimeler (`\|` ile) | Öğretmen puanlar; anahtar kelimeler öğretmene ipucu olarak gösterilir |
 
@@ -82,5 +109,9 @@ Derlenmeyen projede `kod_yapisi` ve `kod_icerir` yine çalışır (yalnızca kod
 2. Öğrenci portaldan girer, projeyi yazar, programı istediği kadar çalıştırıp dener, soruları cevaplar.
 3. **Teslim et** dendiğinde kontroller çalışır. Öğrenci sonucu ve eksiklerini görür; projeyi çalıştırmaya devam edebilir ama değiştirip yeniden teslim edemez.
 4. Öğretmen `ogretmen` ölçütlerini ve `acik` soruları puanlar, teslimleri doğrular. Her öğrenci için temrin sayfası yazdırılabilir.
+
+### Öğretmen onayı
+
+`ogretmen_onayi` `Evet` ise (ya da Temrinler sekmesindeki **Öğretmen onayı** düğmesiyle açılırsa), otomatik puan öğrenciye ve tabloya "öneri" olarak görünür. Öğretmen puan penceresinde **Onayla** ile tek tıkla kesinleştirir ya da puanı değiştirir. Otomatik ölçütte önerilenden farklı puan için **gerekçe** zorunludur; gerekçe öğrenciye ve temrin sayfasına "Öğretmen: …" olarak yazılır. Yeniden değerlendirmede sonuç değişirse onay düşer.
 
 Teslim almış bir temrinin tanımı değiştirilemez; düzeltme gerekiyorsa yeni bir temrin numarasıyla yükleyin ya da temrini silip yeniden yükleyin. Silmek için onay penceresine **TEMRİN SİL** yazılır; çalışmalar ve puanlar da silinir.

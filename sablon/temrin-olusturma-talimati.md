@@ -74,7 +74,7 @@ Bütün kontrol adlarını sen belirle ve "Yapılacak İşlemler"de **açıkça*
 
 ### 3.3 Yapılacak İşlemler
 - Emir kipiyle, her madde tek iş: "btnHesapla'ya tıklanınca txtVize ve txtFinal'deki notların ortalamasını lblSonuc'a yaz."
-- **Çıktı metnini kelimesi kelimesine ver:** `lblSonuc'a "Geçti" ya da "Kaldı" yaz`. Test birebir karşılaştırır; "geçti", "GEÇTİ" ve "Geçti." birbirinden farklıdır.
+- **Çıktı metnini kelimesi kelimesine ver:** `lblSonuc'a "Geçti" ya da "Kaldı" yaz`. Test biçim farkını ("geçti", "GEÇTİ", "Geçti.") kabul eder ama öğrencinin neyi yazacağını bilmesi gerekir; sayıların sırası ve biçimi de açık olsun ("Ortalama: 72,5").
 - Sayı biçimini belirt: tam sayı mı, kaç basamak ondalık mı? Program Türkçe kültürle çalışır: `2.5` değil **`2,5`**. `Math.Round(x, 1)` ya da `x.ToString("0.0")` gibi bir biçim iste.
 - Liste çıktısında **sırayı ve sınırları** açık yaz: "1'den N'e kadar (N dahil)".
 - Her düğmede listeyi önce temizlemesini iste (`lstSonuc.Items.Clear()`). Bunu düğmeye iki kez bastıran bir testle denetle.
@@ -99,7 +99,7 @@ Kılavuzdaki diğer yeterlilikler (hazırlık ve planlama, iletişim, ekonomik k
 ### 3.5 Ölçütü kalemlere bölme
 Her `otomatik` ölçüt, altındaki kalemlerle (`kontrol` ve `soru` satırları) puanlanır. **Kalem puanlarının toplamı ölçüt puanına tam eşit** olmalı. İyi bir ölçüt üç şeyi birlikte test eder:
 
-1. **Yapı (`kod_yapisi`), puanın ~%30–40'ı:** İstenen yapı gerçekten kullanılmış mı? for istenen yerde while kullanan öğrenci yapı puanını alamaz, davranış puanını alır.
+1. **Yapı (`kod_yapisi`), puanın ~%30–40'ı:** İstenen yapı gerçekten kullanılmış mı? Kazanım belirli bir yapıysa ("for döngüsünü kullanır") yalnız onu yaz: while kullanan öğrenci yapı puanını alamaz, davranış puanını alır. Kazanım "döngü kullanır" gibi genelse eşdeğerleri `|` ile yaz: `for|foreach|while`.
 2. **Davranış (`calistir`), kalan puan:** Normal bir girdi ile bir test, uç bir girdi ile bir test. Uç girdi: 0, negatif, sınırdaki değer, boş liste.
 3. **Gizli hatalar:**
    - **Clear unutulmuş mu:** `hedef = "btnX;btnX"` ile iki kez bastır, listenin iki katına çıkmadığını bekle.
@@ -121,7 +121,15 @@ Puanlar tam sayı olmalı. 5 puanlık bir ölçütte tek kalem yeter.
   - NumericUpDown: değer atanır.
   - CheckBox ve RadioButton: `true`/`false`.
 - **Olaylar düğme adıyla bulunur** (`btnFor.Click`). Motor, tasarımcıdaki bağlantıdan metodu kendisi bulur. Öğrenci metodun adını değiştirse de, işi bir yardımcı metoda koysa da (3 kademeye kadar) bulur. Formun açılışı için `this.Load`.
-- **Karşılaştırma birebirdir:** Baştaki ve sondaki boşluklar önemsenmez, büyük-küçük harf **önemlidir**.
+- **Karşılaştırma mantık önce yapılır (`=`, varsayılan):**
+  - Boşluk, büyük-küçük harf (Türkçe İ/ı dahil), ayraçlar (`,` `.` `:` `-`) önemsenmez; `72,5` ile `72.5` aynıdır.
+  - Ek metin kabul edilir: `lblSonuc=Ortalama: 72,5` beklenirken "Sınıfın not ortalaması: 72,5 puan" geçer.
+  - **Sayılar birebir ve sırayla aynı olmalı;** fazla/eksik/yanlış sayı ya da beklenmeyen "değil" yanlış sayılır. Bu yüzden mantık hatasını sayıyla yakalayan testler yaz.
+  - Biçim farkı Tespit'e not olarak yazılır; `bicim_kesintisi` kadar puan kesilir (varsayılan 0).
+  - `==` birebir eşleşme ister (yalnız biçimin kendisi kazanımsa, ör. "çıktıyı şu biçimde yazar"). `~=` beklenen değerin çıktıda geçmesini yeterli sayar.
+- **Birden çok durum:** Aynı düğmeyi farklı girdilerle denemek için `||` kullan: girdi `"txtN=5 || txtN=0"`, beklenen `"lstSonuc=1|2|3|4|5 || lstSonuc="`. Her durum programı baştan başlatır; puan geçen durum oranıyla verilir. İki sütundaki durum sayısı aynı olmalı.
+- **Kontrol adı farklıysa:** Yazım farkı (`lbl_sonuc`) tam puan alır. Tamamen farklı ad (`button1`) için motor kontrolü türünden, metninden ya da olay metodunun adından bulur, testi yine çalıştırır, Tespit'e "Ad farkı" yazar ve yalnızca `ad_kesintisi` kadar keser. Yine de adları Yapılacak İşlemler'de açıkça bildir.
+- **Kısmi puan:** `kontrol_var`'da adlar, `kod_yapisi`'nda `;` grupları, `calistir`'da `||` durumları puanı böler. Tam puan almayan her kontrolün nedeni Tespit'e yazılır.
 - **ListBox / ComboBox:** Öğeler sırayla, metin olarak karşılaştırılır: `lstSonuc=1|2|3`. `lstSonuc=` boş liste demektir.
 - **Label / TextBox:** `.Text` karşılaştırılır: `lblSonuc=Geçti`.
 - **MessageBox:** Son gösterilen mesajın metni: `MessageBox=Hatalı giriş`. Mesaj kutuları otomatik "Tamam/Evet" ile kapanır.
@@ -173,7 +181,7 @@ Puanlar tam sayı olmalı. 5 puanlık bir ölçütte tek kalem yeter.
 ### 5.2 Satır türleri
 | tur | no | Doldurulan sütunlar |
 |---|---|---|
-| `bilgi` | alan adı | `metin` = değer. Alanlar: `ders`, `temrin_no` (tam sayı), `baslik` (kısa ad, ör. "Döngüler"), `sinif`, `islem_konusu`, `proje_adi` (boşluksuz, ör. `DonguTemrin`), `sure_dk`, `ogretmen` |
+| `bilgi` | alan adı | `metin` = değer. Alanlar: `ders`, `temrin_no` (tam sayı), `baslik` (kısa ad, ör. "Döngüler"), `sinif`, `islem_konusu`, `proje_adi` (boşluksuz, ör. `DonguTemrin`), `sure_dk`, `ogretmen`; isteğe bağlı `bicim_kesintisi`, `ad_kesintisi` (tam sayı, varsayılan 0), `ogretmen_onayi` (`Evet`/`Hayır`) |
 | `arac` | sıra | `metin` = araç-gereç maddesi |
 | `islem` | sıra | `metin` = yapılacak işlem maddesi |
 | `olcut` | `O1`… | `puan`, `tip` (`ogretmen` / `sure` / `otomatik`), `metin` = ölçüt başlığı |
@@ -185,9 +193,9 @@ Puanlar tam sayı olmalı. 5 puanlık bir ölçütte tek kalem yeter.
 |---|---|---|---|
 | `derleme` | – | – | – (proje hatasız derleniyor mu) |
 | `kontrol_var` | kontrol adı; birden çoksa `;` ile | – | C# sınıf adı: `TextBox`, `ListBox`, `Button`, `Label`, `ComboBox`… |
-| `kod_yapisi` | olay (`btnFor.Click`), metot adı ya da `*` | – | `for`, `while`, `do`, `foreach`, `break`, `continue`, `if`, `else`, `else if`, `switch`, `try`, `return`. Birden çoksa `;` ile; hepsi aranır |
-| `kod_icerir` | olay ya da `*` | – | aranacak kod parçası (boşluklar önemsenmez), ör. `lstSonuc.Items.Clear()` |
-| `calistir` | basılacak düğmeler, sırayla: `btnHesapla` ya da `"btnFor;btnFor"` | `"txtA=5; txtB=3"` | `lblSonuc=8`, `lstSonuc=1\|2\|3`, `MessageBox=Pozitif`, `hatasiz`. Birden çoksa `;` ile, hepsi sağlanmalı |
+| `kod_yapisi` | olay (`btnFor.Click`), metot adı ya da `*` | – | `for`, `while`, `do`, `foreach`, `break`, `continue`, `if`, `else`, `else if`, `switch`, `try`, `return`. Birden çoksa `;` ile; hepsi aranır. Eşdeğerler `\|` ile: `"for\|foreach\|while;if"` |
+| `kod_icerir` | olay ya da `*` | – | aranacak kod parçası (boşluklar ve `this.` önemsenmez), ör. `lstSonuc.Items.Clear()`. Eşdeğerler ` veya ` ile; ad yerine `*`: `"*.Items.Clear() veya *.DataSource = null"` |
+| `calistir` | basılacak düğmeler, sırayla: `btnHesapla` ya da `"btnFor;btnFor"` | `"txtA=5; txtB=3"` | `lblSonuc=8`, `lstSonuc=1\|2\|3`, `MessageBox=Pozitif`, `hatasiz`. Birden çoksa `;` ile, hepsi sağlanmalı. İşleç: `=` esnek, `==` birebir, `~=` içerir. Durumlar `\|\|` ile |
 
 `hatasiz`: Düğmeler çalışma hatası vermeden çalışmalı.
 
@@ -240,7 +248,8 @@ soru;S1;O5;0;…
 - [ ] Her satır 10 sütun; `;`, `"` ya da satır sonu içeren her hücre tırnak içinde.
 - [ ] `temrin_no` tam sayı; `baslik` ve `proje_adi` dolu; `sure` ölçütü varsa `sure_dk` dolu.
 - [ ] Testlerde geçen her kontrol adı "Yapılacak İşlemler"de öğrenciye bildirilmiş.
-- [ ] Beklenen metinler (büyük-küçük harf, ondalık virgül, sıra) Yapılacak İşlemler'de istenenle birebir aynı.
+- [ ] Beklenen metinlerdeki **sayılar ve sıraları** Yapılacak İşlemler'de istenenle aynı; biçim (boşluk, harf, ayraç) önemsenmez. Biçimin kendisi kazanımsa `==` kullanıldı.
+- [ ] `||` kullanılan `calistir` satırlarında `girdi` ve `beklenen` durum sayıları eşit.
 - [ ] Her kazanım en az bir `kod_yapisi` ve en az bir `calistir` ile ölçülüyor; uç değer testi var.
 - [ ] **Örnek çözümü bütün kontrollerden zihninde geçirdin.** Her `calistir` için girdiyi ver, kodu adım adım yürüt, çıkan sonucu `beklenen` ile karşılaştır. Tek bir uyumsuzluk varsa düzelt.
 - [ ] En az bir yaygın hatanın (Clear unutmak, sınırı yanlış almak, yanlış döngü) bir kontrolle yakalandığını doğruladın.

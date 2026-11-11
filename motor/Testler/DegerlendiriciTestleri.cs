@@ -205,8 +205,11 @@ namespace DonguTemrin
             var s = Degerlendir(DogruForm, designer);
             Assert.False(s["K3"].Gecti);
             Assert.Contains("lstSonuc bir ListBox değil (ComboBox)", s["K3"].Mesaj);
-            Assert.False(s["K4"].Gecti);
-            Assert.Contains("btnBreak adlı kontrol yok", s["K4"].Mesaj);
+            // Kodda alan adı hâlâ btnBreak, yalnızca Name özelliği "btnKes": yazım farkı sayılır, not düşülür, puan tam.
+            Assert.True(s["K4"].Gecti, s["K4"].Mesaj);
+            Assert.Contains("Ad yazımı farklı: \"btnBreak\" yerine \"btnKes\"", s["K4"].Notlar);
+            Assert.True(s["K16"].Gecti, s["K16"].Mesaj);
+            Assert.True(s["K16"].AdFarki);
         }
 
         [Fact]

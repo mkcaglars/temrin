@@ -61,7 +61,7 @@ Motor bunları şöyle uygular; kontrolleri buna göre yaz:
 - **Yardımcı metotlar da sayılır:** Olay metodunun çağırdığı metotlar (3 kademeye kadar) da aranır. Öğrenci döngüyü ayrı bir metoda koysa da `kod_yapisi` bulur.
 - **Her `calistir` programı baştan başlatır;** testler birbirini etkilemez. Önce `girdi` değerleri yazılır, sonra `hedef` düğmelerine sırayla basılır.
 - **Girdi değerleri:** TextBox ve ComboBox metni, NumericUpDown değeri, CheckBox ve RadioButton için `true`/`false`.
-- **Karşılaştırma birebirdir** (baştaki ve sondaki boşluklar hariç; büyük-küçük harf dahil). Beklenen metni programın tam olarak yazacağı şekilde ver: `Pozitif` ≠ `pozitif` ≠ `Sayı pozitif`. Belgede çıktı metni belirtilmemişse sor ya da metni `islem` satırında açıkça yaz ki öğrenci aynısını kullansın.
+- **Karşılaştırma mantık önce yapılır** (`=`): boşluk, büyük-küçük harf, ayraç, ondalık virgül/nokta ve ek metin farkı kabul edilir (`Pozitif` = `pozitif` = `Sayı pozitif`), **sayılar birebir ve sırayla aynı olmalıdır**. Birebir eşleşme gerekiyorsa `==`, beklenenin çıktıda geçmesi yetiyorsa `~=` yaz. Aynı düğmeyi farklı girdilerle denemek için durumları `||` ile ayır (girdi ve beklenende aynı sayıda). `kod_yapisi`'nda eşdeğer yapılar `for|foreach|while`, `kod_icerir`'de ` veya ` ve `*` joker. Çıktı metnini yine `islem` satırında açıkça yaz.
 - **Liste karşılaştırması:** `lstSonuc=1|2|3`, ListBox/ComboBox öğeleri sırayla; `lstSonuc=` boş liste demektir.
 - **Türkçe kültür:** Program `tr-TR` ile çalışır. Ondalık sayılar `2,5` yazılır, `2.5` değil. `double` sonuç bekliyorsan virgüllü yaz ya da yuvarlanacağını `islem` satırında belirt.
 - **Mesaj kutuları** otomatik "Tamam"/"Evet" ile kapanır. `MessageBox=` son gösterilen mesajın metnidir.
@@ -110,7 +110,7 @@ Motor bunları şöyle uygular; kontrolleri buna göre yaz:
 - [ ] Her `calistir` kontrolünde `hedef` ve `beklenen` dolu; `girdi` ve `beklenen` parçaları `ad=değer` biçiminde (`hatasiz` hariç).
 - [ ] `kod_yapisi` beklenenleri yalnızca listedeki adlar.
 - [ ] Testte geçen her kontrol adı `islem` satırlarında öğrenciye bildirilmiş.
-- [ ] Beklenen metinler (büyük-küçük harf, ondalık virgül) programın gerçek çıktısıyla aynı.
+- [ ] Beklenen metinlerdeki sayılar ve sıraları programın gerçek çıktısıyla aynı; `||` durum sayıları eşit.
 - [ ] Örnek çözüm bütün kontrollerden geçiyor; zihninde her `calistir` testini örnek çözümle yürüt.
 - [ ] Belirsiz noktalar raporda soru ya da varsayım olarak yazılmış.
 

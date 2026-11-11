@@ -59,7 +59,9 @@ function puanTablosu(v) {
     return el('td', { class: 'sayi' },
       el('button', { class: 'hucre', title: 'Ölçütleri göster / düzelt', onclick: () => duzelt(t.temrin_id, o.okul_no) }, p.puan ?? '–'),
       p.degerlendiren === 'ogretmen' ? el('span', { class: 'dogrulandi', title: 'Otomatik değerlendirme öğretmen tarafından doğrulandı' }, ' ✓') : null,
-      p.kesin ? null : el('div', {}, el('span', { class: 'rozet' }, 'bekliyor')));
+      p.kesin ? null : el('div', {}, p.onay_bekliyor
+        ? el('span', { class: 'rozet oneri', title: 'Otomatik puan öneridir; onaylamak için tıklayın' }, 'öneri')
+        : el('span', { class: 'rozet' }, 'bekliyor')));
   };
   return el('div', { class: 'kart kaydir' }, el('table', {},
     el('thead', {}, el('tr', {}, el('th', {}, 'Okul No'), el('th', {}, 'Ad Soyad'), el('th', {}, 'Sınıf'),
@@ -78,24 +80,34 @@ function puanTablosu(v) {
 async function duzelt(temrinId, okulNo) {
   let s;
   try { s = (await api({ islem: 'sonuc', temrin_id: temrinId, okul_no: okulNo })).sonuc; } catch (e) { return alert(e.message); }
+  const onayModu = !!s.onay?.gerekli;
+  // Sistem önerisi olan (otomatik / süre) ölçütlerde öneriden farklı puan verilirse gerekçe zorunlu.
   const satirlar = s.olcutler.map(o => ({ o,
     alinan: el('input', { type: 'number', min: 0, max: o.puan, step: 1, value: o.alinan ?? '' }),
-    tespit: el('input', { type: 'text', maxlength: 500, value: o.tespit || '' }) }));
+    tespit: el('input', { type: 'text', maxlength: 500, value: o.tespit || '' }),
+    gerekce: o.tip === 'ogretmen' ? null : el('input', { type: 'text', maxlength: 300, value: o.gerekce || '', placeholder: 'öneriden farklıysa neden' }) }));
   const mesaj = el('p', { class: 'hata' });
+  const onayDurumu = !onayModu ? null : s.onay.onaylayan
+    ? el('p', {}, el('span', { class: 'rozet acik' }, 'Onaylandı'), ` ${s.onay.onaylayan} · ${new Date(s.onay.zaman).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}`)
+    : el('p', {}, el('span', { class: 'rozet' }, 'Öneri'), ' Otomatik puan öneridir; onaylayana kadar kesinleşmez.');
   const dlg = el('dialog', {}, el('div', { class: 'kart' },
     el('h2', {}, `T${s.temrin_no} ${s.temrin_adi} · ${s.okul_no} ${s.ad_soyad}`),
+    onayDurumu,
     el('div', { class: 'kaydir' }, el('table', {},
-      el('thead', {}, el('tr', {}, el('th', {}, 'Değerlendirme'), el('th', { class: 'sayi' }, 'Puanı'), el('th', { class: 'sayi' }, 'Alınan'), el('th', {}, 'Tespitler'))),
+      el('thead', {}, el('tr', {}, el('th', {}, 'Değerlendirme'), el('th', { class: 'sayi' }, 'Puanı'), el('th', { class: 'sayi', title: 'Sistemin önerdiği puan' }, 'Öneri'),
+        el('th', { class: 'sayi' }, 'Alınan'), el('th', {}, 'Tespitler'), el('th', {}, 'Gerekçe'))),
       el('tbody', {}, satirlar.map(r => el('tr', {},
         el('td', {}, r.o.baslik, r.o.duzenleyen === 'ogretmen' ? el('div', { class: 'soluk' }, 'öğretmen düzenledi') : null, kalemler(r.o)),
-        el('td', { class: 'sayi' }, r.o.puan), el('td', { class: 'sayi' }, r.alinan), el('td', {}, r.tespit)))))),
+        el('td', { class: 'sayi' }, r.o.puan), el('td', { class: 'sayi soluk' }, r.o.oneri ?? '–'),
+        el('td', { class: 'sayi' }, r.alinan), el('td', {}, r.tespit), el('td', {}, r.gerekce ?? el('span', { class: 'soluk' }, '–'))))))),
     s.derlendi === false ? el('p', { class: 'hata' }, 'Proje derlenmedi: ', (s.derleme_hatalari || []).join(' · ')) : null,
     el('p', { class: 'soluk' }, s.degerlendiren === 'ogretmen' ? 'Otomatik değerlendirme sizin tarayıcınızda doğrulandı.'
       : s.degerlendiren === 'ogrenci' ? 'Otomatik değerlendirme öğrencinin tarayıcısında yapıldı. Temrinler sekmesinden doğrulayabilirsiniz.'
       : 'Otomatik değerlendirme henüz yapılmadı. Temrinler sekmesinden çalıştırabilirsiniz.'),
     mesaj,
     el('div', { class: 'satir' },
-      el('button', { class: 'ana', onclick: kaydet }, 'Kaydet'),
+      el('button', { class: 'ana', onclick: () => kaydet(false) }, 'Kaydet'),
+      onayModu ? el('button', { class: 'ana', onclick: () => kaydet(true) }, s.onay.onaylayan ? 'Kaydet ve yeniden onayla' : 'Onayla') : null,
       el('button', { onclick: () => dlg.close() }, 'Vazgeç'),
       el('a', { href: `studyo/?temrin=${temrinId}&ogrenci=${encodeURIComponent(okulNo)}`, target: '_blank', rel: 'noopener' }, 'Projeyi aç ↗'),
       el('a', { href: `sayfa.php?temrin_id=${temrinId}&okul_no=${encodeURIComponent(okulNo)}`, target: '_blank', rel: 'noopener' }, 'Temrin sayfası ↗'))));
@@ -103,16 +115,27 @@ async function duzelt(temrinId, okulNo) {
   document.body.append(dlg);
   dlg.showModal();
 
-  async function kaydet() {
+  async function kaydet(onayla) {
     const olcutler = [];
     for (const r of satirlar) {
       const a = r.alinan.value.trim() === '' ? null : Number(r.alinan.value);
       if (a !== null && (!Number.isInteger(a) || a < 0 || a > r.o.puan)) { mesaj.textContent = `${r.o.baslik}: 0 ile ${r.o.puan} arasında tam sayı girin.`; return; }
-      if (a !== r.o.alinan || r.tespit.value.trim() !== (r.o.tespit || '')) olcutler.push({ no: r.o.no, alinan: a, tespit: r.tespit.value });
+      const gerekce = r.gerekce ? r.gerekce.value.trim() : '';
+      if (r.gerekce && r.o.oneri != null && a !== null && a !== r.o.oneri && !gerekce) {
+        mesaj.textContent = `${r.o.baslik}: önerilen puan ${r.o.oneri}, siz ${a} verdiniz. Gerekçe yazın.`;
+        r.gerekce.focus();
+        return;
+      }
+      if (a !== r.o.alinan || r.tespit.value.trim() !== (r.o.tespit || '') || gerekce !== (r.o.gerekce || '')) {
+        olcutler.push({ no: r.o.no, alinan: a, tespit: r.tespit.value, ...(r.gerekce ? { gerekce } : {}) });
+      }
     }
-    if (!olcutler.length) return dlg.close();
-    try { await api(null, { islem: 'duzelt', temrin_id: temrinId, okul_no: okulNo, olcutler }); dlg.close(); goster(); }
-    catch (e) { mesaj.textContent = e.message; }
+    try {
+      if (olcutler.length) await api(null, { islem: 'duzelt', temrin_id: temrinId, okul_no: okulNo, olcutler, onayla });
+      else if (onayla) await api(null, { islem: 'onayla', temrin_id: temrinId, okul_no: okulNo });
+      dlg.close();
+      goster();
+    } catch (e) { mesaj.textContent = e.message; }
   }
 }
 
@@ -169,6 +192,8 @@ async function temrinlerPaneli() {
         el('button', { onclick: () => onizle(t.temrin_id) }, 'Önizle'),
         t.hesaplanacak_ciktilar.length ? el('button', { class: 'ana', onclick: () => ciktilariHesapla(t) }, `Çıktıları hesapla (${t.hesaplanacak_ciktilar.length})`) : null,
         t.teslim_sayisi ? el('button', { onclick: () => dogrula(t) }, 'Teslimleri doğrula') : null,
+        el('button', { title: 'Açıkken otomatik puan öneridir; öğretmen onaylayınca kesinleşir', onclick: () => onayModu(t) },
+          t.ogretmen_onayi ? 'Öğretmen onayı: açık' : 'Öğretmen onayı: kapalı'),
         t.teslim_sayisi ? el('a', { href: `sayfa.php?${new URLSearchParams({ temrin_id: t.temrin_id, ...(durum.sinif ? { sinif: durum.sinif } : {}) })}`, target: '_blank', rel: 'noopener' }, 'Temrin sayfaları ↗') : null,
         el('button', { class: 'tehlike', onclick: () => sil(t) }, 'Sil'))));
   return el('div', {},
@@ -202,6 +227,16 @@ async function onizle(temrinId) {
 }
 
 const SIL_ONAYI = 'TEMRİN SİL';
+
+/** Öğretmen onay modunu açar/kapatır (teyit ister). */
+async function onayModu(t) {
+  const acik = !t.ogretmen_onayi;
+  const metin = acik
+    ? `Temrin ${t.temrin_no} için öğretmen onayı açılsın mı?\n\nOtomatik puanlar öneri olarak görünür; siz onaylayana kadar kesinleşmez. Bundan sonraki değerlendirmelerde geçerlidir.`
+    : `Temrin ${t.temrin_no} için öğretmen onayı kapatılsın mı?\n\nBundan sonraki değerlendirmelerde otomatik puan doğrudan kesinleşir.`;
+  if (!confirm(metin)) return;
+  try { await api(null, { islem: 'onay_modu', temrin_id: t.temrin_id, acik }); goster(); } catch (e) { alert(e.message); }
+}
 
 /** Silme onayı: kutuya TEMRİN SİL yazılmadan "Onayla" düğmesi çalışmaz. */
 async function sil(t) {
