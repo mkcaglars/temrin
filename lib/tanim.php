@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 const TANIM_SUTUNLAR = ['tur', 'no', 'olcut', 'puan', 'tip', 'hedef', 'girdi', 'beklenen', 'metin', 'tespit'];
-const TANIM_BILGI = ['ders', 'temrin_no', 'baslik', 'sinif', 'islem_konusu', 'proje_adi', 'sure_dk', 'ogretmen'];
+const TANIM_BILGI = ['ders', 'temrin_no', 'baslik', 'sinif', 'islem_konusu', 'proje_adi', 'sure_dk', 'ogretmen',
+                     'bicim_kesintisi', 'ad_kesintisi', 'ogretmen_onayi'];
 const KONTROL_TIPLERI = ['derleme', 'kontrol_var', 'kod_yapisi', 'kod_icerir', 'calistir'];
 const SORU_TIPLERI = ['cikti', 'coktan', 'acik'];
 const OLCUT_TIPLERI = ['ogretmen', 'sure', 'otomatik'];
@@ -91,6 +92,11 @@ function tanim_csv_oku(string $icerik): array
     if (!isset($b['temrin_no']) || !preg_match('/^\d{1,4}$/', $b['temrin_no']) || (int)$b['temrin_no'] < 1) $hatalar[] = 'bilgi;temrin_no pozitif bir sayı olmalı.';
     if (trim($b['baslik'] ?? '') === '' && trim($b['islem_konusu'] ?? '') === '') $hatalar[] = 'bilgi;baslik (ya da islem_konusu) gerekli.';
     if (isset($b['sure_dk']) && $b['sure_dk'] !== '' && (!preg_match('/^\d+$/', $b['sure_dk']) || (int)$b['sure_dk'] < 1)) $hatalar[] = 'bilgi;sure_dk pozitif bir sayı olmalı.';
+    foreach (['bicim_kesintisi', 'ad_kesintisi'] as $alan) {
+        if (isset($b[$alan]) && $b[$alan] !== '' && !preg_match('/^\d{1,3}$/', $b[$alan])) $hatalar[] = "bilgi;$alan 0 ya da pozitif bir tam sayı (puan) olmalı.";
+    }
+    $onay = cikti_sozcuk_basit($b['ogretmen_onayi'] ?? '');
+    if (!in_array($onay, ['', 'evet', 'hayir', 'acik', 'kapali', '1', '0'], true)) $hatalar[] = 'bilgi;ogretmen_onayi "evet" ya da "hayır" olmalı.';
     if (!$t['olcutler']) $hatalar[] = 'En az bir ölçüt satırı olmalı.';
     $toplam = array_sum(array_column($t['olcutler'], 'puan'));
     if ($t['olcutler'] && $toplam !== 100) $hatalar[] = "Ölçüt puanlarının toplamı 100 olmalı (şu an $toplam).";
@@ -105,6 +111,9 @@ function tanim_csv_oku(string $icerik): array
     $t['bilgi']['temrin_no'] = (int)$b['temrin_no'];
     $t['bilgi']['baslik'] = trim($b['baslik'] ?? '') !== '' ? trim($b['baslik']) : mb_substr(trim($b['islem_konusu']), 0, 80);
     $t['bilgi']['sure_dk'] = isset($b['sure_dk']) && $b['sure_dk'] !== '' ? (int)$b['sure_dk'] : null;
+    $t['bilgi']['bicim_kesintisi'] = (int)($b['bicim_kesintisi'] ?? 0);
+    $t['bilgi']['ad_kesintisi'] = (int)($b['ad_kesintisi'] ?? 0);
+    $t['bilgi']['ogretmen_onayi'] = in_array($onay, ['evet', 'acik', '1'], true);
     return [$t, []];
 }
 
@@ -116,8 +125,12 @@ function tanim_kontrol_hatasi(array $k): ?string
             return $k['hedef'] === '' ? 'kontrol_var için hedef (kontrol adı) gerekli' : null;
         case 'kod_yapisi':
             if ($k['beklenen'] === '') return 'kod_yapisi için beklenen (for, while, if...) gerekli';
-            foreach (array_map('trim', explode(';', $k['beklenen'])) as $y) {
-                if ($y !== '' && !in_array(strtolower($y), KOD_YAPILARI, true)) return "bilinmeyen kod yapısı '$y'. Geçerli: " . implode(', ', KOD_YAPILARI);
+            // ";" grupları ayırır (her biri gerekli), "|" ya da "veya" eşdeğer seçenekleri: "for|foreach; break"
+            foreach (array_map('trim', explode(';', $k['beklenen'])) as $grup) {
+                foreach (preg_split('/\s*\|\s*|\s+veya\s+/iu', $grup) as $y) {
+                    $y = trim($y);
+                    if ($y !== '' && !in_array(strtolower($y), KOD_YAPILARI, true)) return "bilinmeyen kod yapısı '$y'. Geçerli: " . implode(', ', KOD_YAPILARI);
+                }
             }
             return null;
         case 'kod_icerir':
@@ -125,11 +138,24 @@ function tanim_kontrol_hatasi(array $k): ?string
         case 'calistir':
             if ($k['hedef'] === '') return 'calistir için hedef (tıklanacak düğme) gerekli';
             if ($k['beklenen'] === '') return 'calistir için beklenen gerekli (ör. lstSonuc=1|2|3 ya da hatasiz)';
-            foreach (array_filter(array_map('trim', explode(';', $k['beklenen']))) as $p) {
-                if (strtolower($p) !== 'hatasiz' && !str_contains($p, '=')) return "beklenen biçimi hatalı: '$p' (ad=değer olmalı)";
+            // "||" birden çok durumu ayırır: girdi1 || girdi2 → beklenen1 || beklenen2 (her durum ayrı puanlanır)
+            $bDurum = array_map('trim', explode('||', $k['beklenen']));
+            $gDurum = trim($k['girdi']) === '' ? [''] : array_map('trim', explode('||', $k['girdi']));
+            if (count($gDurum) > 1 && count($bDurum) > 1 && count($gDurum) !== count($bDurum)) {
+                return 'girdi (' . count($gDurum) . ') ve beklenen (' . count($bDurum) . ') durum sayıları farklı; "||" ile aynı sayıda durum yazın';
             }
-            foreach (array_filter(array_map('trim', explode(';', $k['girdi']))) as $p) {
-                if (!str_contains($p, '=')) return "girdi biçimi hatalı: '$p' (ad=değer olmalı)";
+            foreach ($bDurum as $durum) {
+                if ($durum === '') return 'boş beklenen durumu var ("||" arasında değer olmalı)';
+                foreach (array_filter(array_map('trim', explode(';', $durum))) as $p) {
+                    if (strtolower($p) !== 'hatasiz' && !preg_match('/^[^=~]+(==|~=|=)/u', $p)) {
+                        return "beklenen biçimi hatalı: '$p' (ad=değer, ad==değer ya da ad~=değer olmalı)";
+                    }
+                }
+            }
+            foreach ($gDurum as $durum) {
+                foreach (array_filter(array_map('trim', explode(';', $durum))) as $p) {
+                    if (!str_contains($p, '=')) return "girdi biçimi hatalı: '$p' (ad=değer olmalı)";
+                }
             }
             return null;
     }
@@ -148,6 +174,13 @@ function tanim_soru_hatasi(array $s): ?string
         if (ord(strtoupper($s['beklenen'])) - 65 >= count($secenekler)) return 'beklenen seçenek harfi seçenek sayısını aşıyor';
     }
     return null;
+}
+
+/** "Hayır", "HAYIR", "hayir" → "hayir". */
+function cikti_sozcuk_basit(string $s): string
+{
+    $s = mb_strtolower(strtr(trim($s), ['I' => 'ı', 'İ' => 'i']), 'UTF-8');
+    return strtr($s, ['ı' => 'i', 'ş' => 's', 'ğ' => 'g', 'ü' => 'u', 'ö' => 'o', 'ç' => 'c']);
 }
 
 /** Öğrenciye gösterilecek kısım: kontrollerin ayrıntısı ve soruların cevapları yoktur. */

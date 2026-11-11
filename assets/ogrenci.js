@@ -73,7 +73,8 @@ function ciz(v) {
     }
     const s = t.sonuc;
     const puan = el('div', { class: 'satir' }, el('span', { class: 'buyuk' }, s.puan ?? '–'), el('span', { class: 'soluk' }, '/ 100'));
-    if (!s.kesin) puan.append(el('span', { class: 'rozet' }, 'Öğretmen puanlaması bekleniyor'));
+    if (!s.kesin) puan.append(el('span', { class: 'rozet' }, s.onay?.gerekli && !s.onay.onaylayan && s.olcutler.every(o => o.alinan !== null)
+      ? 'Öğretmen onayı bekleniyor' : 'Öğretmen puanlaması bekleniyor'));
     ekle(puan, el('p', { class: 'soluk' }, `Teslim: ${yerelZaman(s.teslim_zamani)} · `, el('a', { href: adres }, 'Projeyi aç'),
       ' · ', el('a', { href: `sayfa.php?temrin_id=${t.temrin_id}`, target: '_blank', rel: 'noopener' }, 'Temrin sayfası')));
     if (s.olcutler.length) {
@@ -83,7 +84,7 @@ function ciz(v) {
           el('td', {}, o.baslik),
           el('td', { class: 'sayi' }, o.puan),
           el('td', { class: 'sayi' }, o.alinan ?? el('span', { class: 'rozet' }, 'bekliyor')),
-          el('td', {}, o.tespit || '')))))));
+          el('td', {}, o.tespit || '', o.gerekce ? el('div', { class: 'gerekce' }, 'Öğretmen: ' + o.gerekce) : null)))))));
     }
     return kart;
   });

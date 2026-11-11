@@ -97,7 +97,7 @@ header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style
     <tbody>
     <?php foreach ($olcutler as $o): ?>
       <tr><td><?= $e($o['baslik']) ?></td><td class="sayi"><?= (int)$o['puan'] ?></td>
-          <td class="sayi"><?= $o['alinan'] === null ? '' : (int)$o['alinan'] ?></td><td class="tespit"><?= $e($o['tespit'] ?? '') ?></td></tr>
+          <td class="sayi"><?= $o['alinan'] === null ? '' : (int)$o['alinan'] ?></td><td class="tespit"><?= $e($o['tespit'] ?? '') ?><?php if (!empty($o['gerekce'])): ?><br><i>Öğretmen: <?= $e($o['gerekce']) ?></i><?php endif ?></td></tr>
     <?php endforeach ?>
       <tr class="toplam"><td>TOPLAM PUAN</td><td class="sayi">100</td><td class="sayi"><?= $r['puan'] === null ? '' : (int)$r['puan'] ?></td>
           <td class="tespit"><?= $r['kesin'] ? '' : 'Puanlanmamış ölçüt var; toplam kesin değil.' ?></td></tr>

@@ -43,7 +43,7 @@ try {
               'calisma' => isset($calismalar[(int)$t['id']]) ? ['basladi' => true, 'teslim' => $calismalar[(int)$t['id']]['teslim_zamani'] !== null] : ['basladi' => false, 'teslim' => false]];
         if ($r !== null) {
             $s = sonuc_ozeti($r, $t, true);
-            $o['sonuc'] = ['puan' => $s['puan'], 'kesin' => $s['kesin'], 'teslim_zamani' => $s['teslim_zamani'], 'olcutler' => $s['olcutler']];
+            $o['sonuc'] = ['puan' => $s['puan'], 'kesin' => $s['kesin'], 'teslim_zamani' => $s['teslim_zamani'], 'olcutler' => $s['olcutler'], 'onay' => $s['onay']];
         }
         $liste[] = $o;
     }
