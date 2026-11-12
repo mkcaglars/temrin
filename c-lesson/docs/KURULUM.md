@@ -65,7 +65,8 @@ GitHub Actions'ta her derlemenin çıktısı "site" adlı bir artifact olarak da
 1. Ayarlarda geçici olarak `'test_portal' => true` yapın.
 2. `https://csharp.okulunuz.k12.tr/test-portal.php` adresinden öğrenci olarak giriş yapın ve bir proje oluşturup çalıştırın.
 3. Öğretmen rolüyle giriş yapıp **Öğretmen Paneli**'ni kontrol edin.
-4. Deneme bitince `'test_portal' => false` yapın.
+4. Üst menüdeki **Laboratuvar** bağlantısıyla `lab.html` sayfasını açıp MySQL simülatörünü deneyin (bkz. [LABORATUVAR.md](LABORATUVAR.md)). Laboratuvar tabloları (`lab_*`) ilk açılışta otomatik oluşturulur.
+5. Deneme bitince `'test_portal' => false` yapın.
 
 ## 6. Okul portalı
 

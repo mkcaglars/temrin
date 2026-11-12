@@ -1,4 +1,5 @@
 // .NET WebAssembly motorunu yükler ve JavaScript'ten çağrılabilir fonksiyonlarını döndürür.
+import { sqlCall } from './mysqlbridge.js';
 
 let enginePromise = null;
 let host = null;
@@ -69,6 +70,7 @@ export function loadEngine(onProgress) {
       output: (text) => call('output', text),
       error: (json) => call('error', json),
       programEnded: (reason) => call('programEnded', reason),
+      sql: (op, json) => sqlCall(op, json),
     });
 
     await runtime.runMain();

@@ -25,22 +25,26 @@ cp -r web/. "$OUT/"
 
 echo ">> Editör (c-lesson) kopyalanıyor..."
 mkdir -p "$STUDYO/assets"
-cp -r "$CLE/web/assets/css" "$CLE/web/assets/js" "$STUDYO/assets/"
+cp -r "$CLE/web/assets/." "$STUDYO/assets/"
 # c-lesson'un sunucu katmanı yerine Temrin uyarlaması; c-lesson'a özgü giriş sayfası kullanılmaz.
 cp studyo/api.js "$STUDYO/assets/js/api.js"
 rm -f "$STUDYO/assets/js/main.js"
 mkdir -p "$STUDYO/temrin"
-cp studyo/temrin.js studyo/temrin.css studyo/monaco-ortam.js "$STUDYO/temrin/"
+cp studyo/temrin.js studyo/panel.js studyo/lab.js studyo/lab-denetim.js studyo/esneklik.js studyo/temrin.css studyo/monaco-ortam.js "$STUDYO/temrin/"
 cp -r build/motor/wwwroot/_framework "$STUDYO/_framework"
 # Tarayıcı .gz dosyalarını kendisi açar (engine.js); .br dosyalarına gerek yok.
 find "$STUDYO/_framework" -name "*.br" -delete
 
 echo ">> Monaco editör kopyalanıyor..."
-if [ ! -d node_modules/monaco-editor ]; then npm install --no-audit --no-fund; fi
+if [ ! -d node_modules/monaco-editor ] || [ ! -d node_modules/sql.js ]; then npm install --no-audit --no-fund; fi
 mkdir -p "$STUDYO/lib/monaco"
 cp -r node_modules/monaco-editor/min/vs "$STUDYO/lib/monaco/vs"
-find "$STUDYO/lib/monaco/vs/basic-languages" -mindepth 1 -maxdepth 1 -type d ! -name csharp -exec rm -rf {} +
+find "$STUDYO/lib/monaco/vs/basic-languages" -mindepth 1 -maxdepth 1 -type d ! -name csharp ! -name mysql ! -name xml -exec rm -rf {} +
 rm -f "$STUDYO"/lib/monaco/vs/nls.messages.*.js
 rm -rf "$STUDYO/lib/monaco/vs/language/html" "$STUDYO/lib/monaco/vs/language/css" "$STUDYO/lib/monaco/vs/language/json" "$STUDYO/lib/monaco/vs/language/typescript"
+
+echo ">> sql.js (laboratuvar MySQL simülatörü) kopyalanıyor..."
+mkdir -p "$STUDYO/lib/sqljs"
+cp node_modules/sql.js/dist/sql-wasm.js node_modules/sql.js/dist/sql-wasm.wasm "$STUDYO/lib/sqljs/"
 
 echo ">> Hazır: $OUT/ ($(du -sh "$OUT" | cut -f1))"

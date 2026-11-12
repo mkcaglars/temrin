@@ -22,8 +22,12 @@ if [ ! -d node_modules/monaco-editor ]; then npm install --no-audit --no-fund; f
 mkdir -p "$OUT/lib/monaco"
 cp -r node_modules/monaco-editor/min/vs "$OUT/lib/monaco/vs"
 # Yalnızca C# dil desteği yeterli; diğer dillerin dosyalarını çıkar.
-find "$OUT/lib/monaco/vs/basic-languages" -mindepth 1 -maxdepth 1 -type d ! -name csharp -exec rm -rf {} +
+find "$OUT/lib/monaco/vs/basic-languages" -mindepth 1 -maxdepth 1 -type d ! -name csharp ! -name mysql ! -name xml -exec rm -rf {} +
 rm -f "$OUT"/lib/monaco/vs/nls.messages.*.js
 rm -rf "$OUT/lib/monaco/vs/language/html" "$OUT/lib/monaco/vs/language/css" "$OUT/lib/monaco/vs/language/json" "$OUT/lib/monaco/vs/language/typescript"
+
+echo ">> sql.js (laboratuvar MySQL simülatörü) kopyalanıyor..."
+mkdir -p "$OUT/lib/sqljs"
+cp node_modules/sql.js/dist/sql-wasm.js node_modules/sql.js/dist/sql-wasm.wasm "$OUT/lib/sqljs/"
 
 echo ">> Hazır: $OUT/ ($(du -sh "$OUT" | cut -f1))"

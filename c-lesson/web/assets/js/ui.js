@@ -56,7 +56,7 @@ export function modal({ title, body, buttons = [{ text: 'Tamam', value: 'ok', pr
       if (e.key === 'Escape' && dismissable) { e.preventDefault(); close(null); }
     }
     for (const b of buttons) {
-      const btn = h('button', { class: 'btn ' + (b.primary ? 'btn-primary' : b.danger ? 'btn-danger' : '') }, b.text);
+      const btn = h('button', { class: 'btn ' + (b.primary ? 'btn-primary' : b.danger ? 'btn-danger' : ''), disabled: !!b.disabled }, b.text);
       btn.onclick = async () => {
         if (b.validate) {
           const ok = await b.validate();
@@ -115,4 +115,13 @@ export function download(filename, bytes, type = 'application/octet-stream') {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/** İndirilen dosya adı: Türkçe harfler ASCII'ye çevrilir (tüm tarayıcılarda doğru ad) */
+export function asciiFileName(name) {
+  const map = { ç: 'c', Ç: 'C', ğ: 'g', Ğ: 'G', ı: 'i', İ: 'I', ö: 'o', Ö: 'O', ş: 's', Ş: 'S', ü: 'u', Ü: 'U' };
+  const s = String(name || 'Proje').replace(/[çÇğĞıİöÖşŞüÜ]/g, (c) => map[c])
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9 ._-]+/g, '_').trim();
+  return s || 'Proje';
 }

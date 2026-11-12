@@ -1,0 +1,38 @@
+﻿tur;no;olcut;puan;tip;hedef;girdi;beklenen;metin;tespit
+bilgi;ders;;;;;;;Programlama (C#);
+bilgi;temrin_no;;;;;;;12;
+bilgi;baslik;;;;;;;SQL Komutları;
+bilgi;sinif;;;;;;;11 Donanım B;
+bilgi;islem_konusu;;;;;;;"MySQL Workbench ile veritabanı ve tablo oluşturma; INSERT, UPDATE ve DELETE komutlarının kullanılması";
+bilgi;ortam;;;;;;;laboratuvar;
+bilgi;lab_kurulum;;;;;;;hazır;
+bilgi;lab_sifre;;;;;;;1234;
+bilgi;sure_dk;;;;;;;80;
+bilgi;ogretmen;;;;;;;Mustafa Kemal Çağlar;
+arac;1;;;;;;;Bilgisayar;
+arac;2;;;;;;;"Temrin Laboratuvarı (MySQL Server 8.0 ve MySQL Workbench kurulu; root şifresi 1234)";
+islem;1;;;;;;;"Masaüstündeki MySQL Workbench'i aç, Local instance MySQL80 bağlantısına root (şifre 1234) ile bağlan.";
+islem;2;;;;;;;"sirket adlı bir veritabanı (şema) oluştur.";
+islem;3;;;;;;;"sirket içinde personel tablosunu oluştur: id INT (birincil anahtar, otomatik artan), ad VARCHAR(50) (boş geçilemez), bolum VARCHAR(30), maas DECIMAL(10,2).";
+islem;4;;;;;;;"INSERT ile şu 5 kaydı ekle (id otomatik verilsin): Ali Yılmaz / Bilgi İşlem / 7000; Ayşe Demir / Muhasebe / 5000; Mehmet Kaya / Satış / 4500; Zeynep Çelik / Muhasebe / 6000; Can Öztürk / Satış / 4000.";
+islem;5;;;;;;;"UPDATE ile yalnızca Muhasebe bölümündeki personelin maaşlarını %10 artır (maas = maas * 1.1). Workbench 1175 (Safe Updates) hatası verirse Edit > Preferences > SQL Editor'den Safe Updates'i kapatıp yeniden bağlan.";
+islem;6;;;;;;;"DELETE ile Can Öztürk'ün kaydını sil.";
+islem;7;;;;;;;"SELECT * FROM personel ile sonucu kontrol et; soruları cevapla ve temrini teslim et.";
+olcut;O1;;10;ogretmen;;;;İş sağlığı ve güvenliği kurallarına uyulması, laboratuvarın düzenli kullanılması;
+olcut;O2;;10;sure;;;;Sürenin doğru kullanılması;
+olcut;O3;;25;otomatik;;;;Veritabanı ve tablonun doğru oluşturulması;
+kontrol;K1;O3;5;vt_var;sirket;;;sirket veritabanı var;sirket veritabanı oluşturulmamış
+kontrol;K2;O3;5;tablo_var;sirket.personel;;;personel tablosu var;sirket içinde personel tablosu yok
+kontrol;K3;O3;5;sutun_var;sirket.personel.id;;int pk ai;id: INT, PK, AI;
+kontrol;K4;O3;5;sutun_var;sirket.personel.ad;;varchar(50) nn;ad: VARCHAR(50), NN;
+kontrol;K5;O3;5;sutun_var;"sirket.personel.bolum;sirket.personel.maas";;;bolum ve maas sütunları var;
+olcut;O4;;15;otomatik;;;;INSERT ile kayıt eklenmesi;
+kontrol;K6;O4;15;sql_dogru;sirket;"SELECT COUNT(*) = 4 FROM personel WHERE ad IN ('Ali Yılmaz', 'Ayşe Demir', 'Mehmet Kaya', 'Zeynep Çelik')";;Kalan dört kayıt doğru eklenmiş;Kayıtlar eksik ya da adları yanlış yazılmış
+olcut;O5;;15;otomatik;;;;UPDATE ile kayıtların güncellenmesi;
+kontrol;K7;O5;15;sql_sonuc;sirket;"SELECT ad, maas FROM personel WHERE ad <> 'Can Öztürk' ORDER BY id";Ali Yılmaz 7000|Ayşe Demir 5500|Mehmet Kaya 4500|Zeynep Çelik 6600;Yalnızca Muhasebe maaşları %10 artmış;
+olcut;O6;;10;otomatik;;;;DELETE ile kayıt silinmesi;
+kontrol;K8;O6;5;sql_sonuc;sirket;"SELECT COUNT(*) FROM personel WHERE ad = 'Can Öztürk'";0;Can Öztürk silinmiş;Can Öztürk'ün kaydı silinmemiş
+kontrol;K9;O6;5;kayit_sayisi;sirket.personel;;4;Tabloda 4 kayıt kalmış;
+olcut;O7;;15;otomatik;;;;SQL komutlarının anlaşılması;
+soru;S1;O7;5;coktan;"A) 1146 Table doesn't exist|B) 1175 Safe update mode|C) 1062 Duplicate entry|D) 1064 Syntax error";;B;Workbench'te Safe Updates açıkken WHERE'siz bir UPDATE komutu hangi hatayı verir?;
+soru;S2;O7;10;acik;;;DELETE|DROP|yapı|kayıt;DELETE FROM personel ile DROP TABLE personel komutları arasındaki fark nedir?;

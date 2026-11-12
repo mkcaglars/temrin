@@ -7,6 +7,20 @@ import { instanceName } from './datasetgen.js';
 
 const NAV_GLYPHS = { AddNewItem: '✚', DeleteItem: '✖', MoveFirstItem: '⏮', MovePreviousItem: '◀', MoveNextItem: '▶', MoveLastItem: '⏭' };
 import { h } from './ui.js';
+import { FORM_MEMBERS } from './templates.js';
+
+/** Başka bir nesnenin adını tutan özellikler (silinince/yeniden adlandırılınca güncellenir). */
+const REF_PROPS = ['AcceptButton', 'CancelButton', 'MainMenuStrip', 'ContextMenuStrip', 'DataSource', 'BindingSourceRef',
+  'AddNewItem', 'DeleteItem', 'MoveFirstItem', 'MovePreviousItem', 'MoveNextItem', 'MoveLastItem', 'CountItem', 'PositionItem'];
+
+/** Bir nesnenin ve içindekilerin (alt kontroller, menü öğeleri) adları. */
+function namesWithin(c, out = []) {
+  if (!c) return out;
+  out.push(c.name);
+  for (const it of stripItemsOf(c)) out.push(it.name);
+  for (const ch of c.controls || []) namesWithin(ch, out);
+  return out;
+}
 
 const FORM = '$form';
 
@@ -208,8 +222,9 @@ export class FormDesigner {
     this.layoutDock(this.model.controls, { x: 0, y: 0, w: cw, h: ch });
   }
 
-  snapshot() {
-    this.undoStack.push(JSON.stringify(this.model));
+  /** rename: { from, to } — geri alınınca koddaki ad da geri çevrilir. */
+  snapshot(rename = null) {
+    this.undoStack.push({ json: JSON.stringify(this.model), rename });
     if (this.undoStack.length > 100) this.undoStack.shift();
     this.redoStack = [];
   }
@@ -224,14 +239,18 @@ export class FormDesigner {
 
   undo() {
     if (!this.undoStack.length || this.readOnly) return;
-    this.redoStack.push(JSON.stringify(this.model));
-    this.restore(this.undoStack.pop());
+    const e = this.undoStack.pop();
+    this.redoStack.push({ json: JSON.stringify(this.model), rename: e.rename });
+    this.restore(e.json);
+    if (e.rename) this.host.renameInCode(this.formName, e.rename.to, e.rename.from);
   }
 
   redo() {
     if (!this.redoStack.length || this.readOnly) return;
-    this.undoStack.push(JSON.stringify(this.model));
-    this.restore(this.redoStack.pop());
+    const e = this.redoStack.pop();
+    this.undoStack.push({ json: JSON.stringify(this.model), rename: e.rename });
+    this.restore(e.json);
+    if (e.rename) this.host.renameInCode(this.formName, e.rename.from, e.rename.to);
   }
 
   /** Değişikliği uygular: düzen + Designer.cs + yeniden çizim. */
@@ -424,11 +443,61 @@ export class FormDesigner {
   }
 
   /** VS gibi ad: "Dosya" → dosyaToolStripMenuItem */
+  /**
+   * Ad başvurularını günceller. map: eski ad → yeni ad (silinenler için null).
+   * targets verilmezse bütün form (özellikler, kontroller, bileşenler) taranır.
+   */
+  remapRefs(map, targets = null) {
+    if (!map.size) return;
+    const fix = (props) => {
+      if (!props) return;
+      for (const k of REF_PROPS) {
+        if (props[k] && map.has(props[k])) {
+          const v = map.get(props[k]);
+          if (v) props[k] = v; else delete props[k];
+        }
+      }
+      if (props.DataBindings) {
+        for (const [k, v] of Object.entries(props.DataBindings)) {
+          const [src, ...field] = String(v).split('.');
+          if (!map.has(src)) continue;
+          if (map.get(src)) props.DataBindings[k] = [map.get(src), ...field].join('.');
+          else delete props.DataBindings[k];
+        }
+        if (!Object.keys(props.DataBindings).length) delete props.DataBindings;
+      }
+      if (props.AdapterRef) {
+        for (const [k, v] of Object.entries(props.AdapterRef)) {
+          if (!map.has(v)) continue;
+          if (map.get(v)) props.AdapterRef[k] = map.get(v); else delete props.AdapterRef[k];
+        }
+      }
+      for (const k of Object.keys(props)) {
+        if (!k.startsWith('ToolTip:') || !map.has(k.substring(8))) continue;
+        const v = props[k];
+        delete props[k];
+        if (map.get(k.substring(8))) props['ToolTip:' + map.get(k.substring(8))] = v;
+      }
+    };
+    const visit = (c) => {
+      fix(c.props);
+      for (const it of stripItemsOf(c)) fix(it.props);
+      for (const ch of c.controls || []) visit(ch);
+    };
+    if (targets) {
+      for (const t of targets) visit(t);
+      return;
+    }
+    fix(this.model.props);
+    for (const c of this.model.controls) visit(c);
+    for (const c of this.model.components || []) visit(c);
+  }
+
   menuItemName(text) {
     let base = String(text).replace(/&/g, '').trim().split(/\s+/)
       .map((w, i) => (i ? w.charAt(0).toLocaleUpperCase('tr-TR') + w.slice(1) : w)).join('');
-    base = base.replace(/[^\p{L}\p{N}_]/gu, '');
-    if (!base || /^\p{N}/u.test(base)) return this.uniqueName('toolStripMenuItem');
+    base = base.replace(/[^\p{L}\p{Nd}_]/gu, '');
+    if (!base || /^\p{Nd}/u.test(base)) return this.uniqueName('toolStripMenuItem');
     base = base.charAt(0).toLocaleLowerCase('tr-TR') + base.slice(1) + 'ToolStripMenuItem';
     return this.allNames().has(base) ? this.uniqueName(base) : base;
   }
@@ -871,18 +940,16 @@ export class FormDesigner {
     const names = this.selection.filter((n) => n !== FORM);
     if (!names.length) return;
     this.snapshot();
+    const removed = new Map();
     for (const n of names) {
       const e = this.find(n);
       if (!e) continue;
       const idx = e.list.indexOf(e.control);
       if (idx >= 0) e.list.splice(idx, 1);
-      for (const k of ['AcceptButton', 'CancelButton', 'MainMenuStrip', 'ContextMenuStrip']) if (this.model.props[k] === n) delete this.model.props[k];
-      for (const { control } of this.walk()) {
-        if (control.props.ContextMenuStrip === n) delete control.props.ContextMenuStrip;
-        delete control.props['ToolTip:' + n];
-      }
+      for (const x of namesWithin(e.control)) removed.set(x, null);
       if (e.parent?.type === 'TabControl') e.parent.props.SelectedIndex = Math.min(this.selectedTab(e.parent), Math.max(0, e.parent.controls.length - 1));
     }
+    this.remapRefs(removed);
     this.selection = [FORM];
     this.commit();
   }
@@ -903,28 +970,44 @@ export class FormDesigner {
     const list = this.childrenOf(parent);
     const added = [];
     const reserved = new Set();
+    const map = new Map();
     const rename = (c) => {
+      const old = c.name;
       c.name = this.uniqueName(CONTROLS[c.type]?.prefix || 'control', reserved);
+      map.set(old, c.name);
       for (const col of c.props?.Columns || []) col.name = this.uniqueName(col.name.replace(/\d+$/, ''), reserved);
-      for (const it of stripItemsOf(c)) it.name = this.uniqueName(it.name.replace(/\d+$/, ''), reserved);
+      for (const it of stripItemsOf(c)) {
+        const o = it.name;
+        it.name = this.uniqueName(it.name.replace(/\d+$/, ''), reserved);
+        map.set(o, it.name);
+      }
       if (c.props?.ContextMenuStrip) delete c.props.ContextMenuStrip;
       if (c.controls) c.controls.forEach(rename);
     };
+    const pasted = [];
     for (const item of clipboard) {
       const c = clone(item.control);
       if (item.component) {
         c.name = this.uniqueName(CONTROLS[c.type]?.prefix || 'component', reserved);
-        for (const it of stripItemsOf(c)) it.name = this.uniqueName(it.name.replace(/\d+$/, ''), reserved);
+        for (const it of stripItemsOf(c)) {
+          const o = it.name;
+          it.name = this.uniqueName(it.name.replace(/\d+$/, ''), reserved);
+          map.set(o, it.name);
+        }
         this.model.components.push(c);
+        pasted.push(c);
         added.push(c.name);
         continue;
       }
       rename(c);
+      pasted.push(c);
       if (c.props.Location) c.props.Location = [c.props.Location[0] + 12, c.props.Location[1] + 12];
       if (c.props.Text === item.control.name) c.props.Text = c.name;
       list.unshift(c);
       added.push(c.name);
     }
+    // Kopyanın kendi öğelerine olan başvurular (ör. gezginin MoveFirstItem'ı) kopyadaki öğelere yönelsin
+    this.remapRefs(map, pasted);
     this.selection = added;
     this.commit();
   }
@@ -1299,15 +1382,21 @@ export class FormDesigner {
   setProperty(names, prop, value) {
     if (this.readOnly) return;
     this.snapshot();
+    const removed = new Map();
     for (const name of names) {
       const props = name === FORM ? this.model.props : this.find(name)?.control?.props;
       if (!props) continue;
+      if (prop === 'StripItems') {
+        const keep = new Set((value || []).flatMap((it) => namesWithin(it)));
+        for (const it of props.StripItems || []) for (const x of namesWithin(it)) if (!keep.has(x)) removed.set(x, null);
+      }
       if (value === undefined || value === null) delete props[prop];
       else props[prop] = value;
       const c = name === FORM ? null : this.find(name).control;
       if (c && prop === 'Multiline' && c.type === 'TextBox' && !value) c.props.Size = [c.props.Size[0], 23];
       if (c && prop === 'AutoSize' && !value && c.type === 'Label') c.props.Size = [...c.props.Size];
     }
+    this.remapRefs(removed);
     this.commit();
   }
 
@@ -1315,19 +1404,13 @@ export class FormDesigner {
   renameControl(oldName, newName) {
     if (this.readOnly || oldName === newName) return true;
     if (this.allNames().has(newName)) return 'Bu ad zaten kullanılıyor.';
+    if (FORM_MEMBERS.has(newName) || newName === this.formName) return `"${newName}" formun kendi üyelerinden biri; başka bir ad seçin.`;
     const e = this.find(oldName);
     if (!e?.control) return 'Kontrol bulunamadı.';
-    this.snapshot();
+    this.snapshot({ from: oldName, to: newName });
     e.control.name = newName;
     if (e.control.props.Text === oldName) e.control.props.Text = newName;
-    for (const k of ['AcceptButton', 'CancelButton', 'MainMenuStrip', 'ContextMenuStrip']) if (this.model.props[k] === oldName) this.model.props[k] = newName;
-    for (const { control } of this.walk()) {
-      if (control.props.ContextMenuStrip === oldName) control.props.ContextMenuStrip = newName;
-      if (('ToolTip:' + oldName) in control.props) {
-        control.props['ToolTip:' + newName] = control.props['ToolTip:' + oldName];
-        delete control.props['ToolTip:' + oldName];
-      }
-    }
+    this.remapRefs(new Map([[oldName, newName]]));
     this.selection = this.selection.map((n) => (n === oldName ? newName : n));
     this.commit();
     this.host.renameInCode(this.formName, oldName, newName);
@@ -1359,6 +1442,9 @@ export class FormDesigner {
     const tc = this.find(name)?.control;
     if (!tc) return;
     this.snapshot();
+    const kept = new Set(pages.map((p) => p.page).filter(Boolean));
+    const removed = new Map();
+    for (const pg of tc.controls) if (!kept.has(pg)) for (const x of namesWithin(pg)) removed.set(x, null);
     tc.controls = pages.map((p, i) => {
       const pg = p.page || { type: 'TabPage', name: p.name, props: { ...CONTROLS.TabPage.defaults(p.name) }, events: {}, controls: [] };
       pg.props.Text = p.text;
@@ -1366,6 +1452,7 @@ export class FormDesigner {
       return pg;
     });
     tc.props.SelectedIndex = Math.min(this.selectedTab(tc), Math.max(0, tc.controls.length - 1));
+    this.remapRefs(removed);
     this.selection = [name];
     this.commit();
   }

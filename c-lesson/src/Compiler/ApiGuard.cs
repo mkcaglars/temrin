@@ -21,6 +21,10 @@ namespace CLesson.Compiler
         {
             "System.Activator", "System.AppDomain", "System.Diagnostics.Process", "System.Runtime.CompilerServices.Unsafe",
             "System.Diagnostics.StackTrace", "System.Diagnostics.StackFrame",
+            // Adla nesne/çağrı üreten yollar (Activator benzeri)
+            "System.ComponentModel.TypeDescriptor", "System.Runtime.CompilerServices.RuntimeHelpers",
+            "System.Runtime.CompilerServices.RuntimeFeature", "System.Runtime.CompilerServices.UnsafeAccessorAttribute",
+            "System.Linq.Expressions.Expression",
         };
 
         // System.Type üyelerinden izin verilenler (yansıma ile çağrı yapmaya yaramayanlar).
@@ -68,7 +72,8 @@ namespace CLesson.Compiler
                 return "Environment." + symbol.Name + " yerine Application.Exit() kullanın.";
             if (typeName == "System.Type" && symbol is not INamedTypeSymbol && !allowedTypeMembers.Contains(symbol.Name))
                 return "Type." + symbol.Name + " (yansıma/reflection) bu ders ortamında kullanılamaz.";
-            if (typeName == "System.Delegate" && symbol.Name is "DynamicInvoke" or "Method")
+            // Delegate.CreateDelegate adla herhangi bir metoda (ör. Type.GetType, MethodInfo.Invoke) temsilci üretir: yansımanın kapısıdır.
+            if (typeName is "System.Delegate" or "System.MulticastDelegate" && symbol.Name is "DynamicInvoke" or "Method" or "CreateDelegate" or "Target")
                 return "Delegate." + symbol.Name + " bu ders ortamında kullanılamaz.";
             if (blockedTypes.Contains(typeName))
                 return typeName + " bu ders ortamında kullanılamaz.";

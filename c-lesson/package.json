@@ -9,5 +9,8 @@
     "monaco-editor": "0.52.2",
     "playwright-core": "^1.48.0"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "sql.js": "^1.15.2"
+  }
 }

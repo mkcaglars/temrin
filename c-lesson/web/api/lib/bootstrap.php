@@ -32,6 +32,8 @@ function db(): PDO
     if (str_starts_with($c['dsn'], 'sqlite:')) {
         $dir = dirname(substr($c['dsn'], 7));
         if (!is_dir($dir)) mkdir($dir, 0770, true);
+        // Veritabanı klasörü web üzerinden indirilemesin.
+        if (!is_file($dir . '/.htaccess')) @file_put_contents($dir . '/.htaccess', "Require all denied\n");
     }
     $pdo = new PDO($c['dsn'], $c['user'] ?? null, $c['pass'] ?? null, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -87,6 +89,8 @@ function current_user(): ?array
         $_SESSION = [];
         return null;
     }
+    // Oturum yalnızca okunur: kilidi bırak ki aynı kullanıcının istekleri birbirini beklemesin.
+    session_write_close();
     $st = db()->prepare('SELECT id, uid, name, role, sinif FROM users WHERE id = ?');
     $st->execute([$id]);
     $u = $st->fetch();

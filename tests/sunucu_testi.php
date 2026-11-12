@@ -367,6 +367,57 @@ dogrula($post($OB, '/api/ogretmen.php', ['islem' => 'onay_modu', 'temrin_id' => 
 $r = $post($OA, '/api/ogretmen.php', ['islem' => 'onayla', 'temrin_id' => $TID2, 'okul_no' => '2045']);
 dogrula($r['durum'] === 400 && $r['json']['kod'] === 'ONAY_MODU_KAPALI', 'onay modu kapalıyken onay istenmez');
 
+echo "Laboratuvar\n";
+$labCsv = file_get_contents("$kok/sablon/temrin-lab-sql-komutlari.csv");
+$r = $post($OA, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'csv' => $labCsv]);
+dogrula($r['durum'] === 200, 'laboratuvar temrini (SQL kontrolleri) yüklenir');
+$LID = $r['json']['temrin']['temrin_id'] ?? 0;
+$labHata = fn(string $bul, string $koy) => implode(' ', $post($OA, '/api/ogretmen.php', ['islem' => 'temrin_yukle', 'csv' => str_replace(['bilgi;temrin_no;;;;;;;12;', $bul], ['bilgi;temrin_no;;;;;;;13;', $koy], $labCsv)])['json']['hatalar'] ?? []);
+dogrula(str_contains($labHata('sutun_var;sirket.personel.id;', 'sutun_var;sirket.personel;'), 'hedef biçimi hatalı'), 'sutun_var hedefi vt.tablo.sutun olmalı');
+dogrula(str_contains($labHata('kayit_sayisi;sirket.personel;;4;', 'kayit_sayisi;sirket.personel;;dört;'), 'kayit_sayisi için beklenen bir sayı'), 'kayit_sayisi beklenen sayı olmalı');
+dogrula(str_contains($labHata('"SELECT COUNT(*) = 4', '"UPDATE personel SET x = 1 WHERE (SELECT COUNT(*) = 4'), 'SELECT sorgusu'), 'sql_dogru girdisi SELECT olmalı');
+dogrula(str_contains($labHata('bilgi;ortam;;;;;;;laboratuvar;', 'bilgi;ortam;;;;;;;studyo;'), 'laboratuvar kontrolüdür'), 'ortam studyo iken SQL kontrolü reddedilir');
+dogrula(str_contains($labHata('bilgi;ortam;;;;;;;laboratuvar;', 'bilgi;ortam;;;;;;;mutfak;'), 'bilgi;ortam'), 'bilinmeyen ortam reddedilir');
+$post($OA, '/api/ogretmen.php', ['islem' => 'erisim', 'temrin_id' => $LID, 'sinif' => '11 Donanım B', 'erisim_acik' => true]);
+$r = $cal($S1, ['temrin_id' => $LID]);
+dogrula($r['json']['temrin']['bilgi']['ortam'] === 'laboratuvar' && $r['json']['temrin']['bilgi']['lab_sifre'] === '1234' && $r['json']['temrin']['hazirlik'] === '', 'öğrenci ortamı, kurulum ayarını ve hazırlık SQL\'ini alır');
+$r = $cal($S1, ['temrin_id' => $LID, 'lab' => 'durum']);
+dogrula($r['durum'] === 200 && $r['json']['state'] === null && $r['json']['databases'] === [], 'yeni laboratuvar boş');
+$durum = ['v' => 1, 'install' => ['mysql' => true, 'workbench' => true, 'configured' => true, 'products' => []], 'files' => new stdClass(), 'seen' => ['temrin' => true], 'server' => ['users' => [['user' => 'root']]]];
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'lab_durum', 'temrin_id' => $LID, 'state' => $durum])['durum'] === 200, 'laboratuvar durumu kaydedilir');
+$vt = base64_encode(random_bytes(3000));
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'lab_vt', 'temrin_id' => $LID, 'ad' => 'Sirket', 'veri' => $vt])['durum'] === 200, 'veritabanı kaydedilir');
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'lab_vt', 'temrin_id' => $LID, 'ad' => 'kötü ad;', 'veri' => $vt])['durum'] === 400, 'geçersiz veritabanı adı reddedilir');
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'lab_vt', 'temrin_id' => $LID, 'ad' => 'x', 'veri' => 'bu base64 değil!'])['durum'] === 413, 'geçersiz veritabanı dosyası reddedilir');
+$r = $cal($S1, ['temrin_id' => $LID, 'lab' => 'durum']);
+dogrula($r['json']['state']['files'] === [] || $r['json']['state']['files'] == new stdClass(), 'durum geri okunur');
+dogrula(str_contains($r['govde'], '"files":{}'), 'boş nesneler ({}) dizi olmadan saklanır');
+dogrula(array_column($r['json']['databases'], 'name') === ['sirket'], 'veritabanı adı küçük harfle listelenir');
+dogrula($cal($S1, ['temrin_id' => $LID, 'lab_vt' => 'sirket'])['json']['data'] === $vt, 'veritabanı dosyası geri okunur');
+dogrula($cal($S2, ['temrin_id' => $LID, 'lab' => 'durum'])['json']['kod'] === 'CALISMA_YOK', 'temrini açmamış öğrencinin laboratuvarı yok');
+$cal($S2, ['temrin_id' => $LID]);
+dogrula($cal($S2, ['temrin_id' => $LID, 'lab_vt' => 'sirket'])['durum'] === 404 && $cal($S2, ['temrin_id' => $LID, 'lab' => 'durum'])['json']['databases'] === [],
+    'her öğrencinin laboratuvarı ayrı: başkasının veritabanı görünmez');
+dogrula($cal($S1, ['temrin_id' => $LID, 'okul_no' => '2045', 'lab' => 'durum'])['durum'] === 403, 'öğrenci okul_no ile başkasının laboratuvarını isteyemez');
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'lab_vt_sil', 'temrin_id' => $LID, 'ad' => 'yok'])['durum'] === 200, 'olmayan veritabanını silmek hata vermez');
+$r = $post($S1, '/api/calisma.php', ['islem' => 'teslim', 'temrin_id' => $LID, 'veri' => null, 'cevaplar' => ['S1' => 'B']]);
+dogrula($r['durum'] === 200 && count($r['json']['kontroller']) === 9, 'laboratuvar temrini proje olmadan teslim edilir, 9 SQL kontrolü tarayıcıya verilir');
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'lab_vt', 'temrin_id' => $LID, 'ad' => 'sirket', 'veri' => base64_encode('x')])['durum'] === 409, 'teslimden sonra laboratuvar değiştirilemez');
+dogrula($post($S1, '/api/calisma.php', ['islem' => 'lab_vt_sil', 'temrin_id' => $LID, 'ad' => 'sirket'])['durum'] === 409, 'teslimden sonra veritabanı silinemez');
+dogrula($cal($S1, ['temrin_id' => $LID, 'lab_vt' => 'sirket'])['durum'] === 200, 'teslimden sonra öğrenci laboratuvarını okuyabilir');
+dogrula($cal($OA, ['temrin_id' => $LID, 'okul_no' => '3268', 'lab_vt' => 'sirket'])['json']['data'] === $vt, 'öğretmen kendi sınıfındaki öğrencinin laboratuvarını okur (doğrulama)');
+dogrula($cal($OB, ['temrin_id' => $LID, 'okul_no' => '3268', 'lab' => 'durum'])['durum'] === 403, 'başka sınıfın öğretmeni laboratuvarı göremez');
+$sonuclar = array_map(fn($k) => ['no' => $k['no'], 'gecti' => $k['no'] !== 'K7', 'oran' => $k['no'] === 'K3' ? 0.5 : ($k['no'] === 'K7' ? 0 : 1),
+    'mesaj' => ['K3' => 'personel.id sütunu: otomatik artan (AI) olmalı.', 'K7' => 'Sonuç farklı: beklenen [..], bulunan [..].'][$k['no']] ?? ''], $r['json']['kontroller']);
+$d = $post($S1, '/api/calisma.php', ['islem' => 'degerlendirme', 'temrin_id' => $LID, 'sonuc' => ['derlendi' => true, 'sonuclar' => $sonuclar]]);
+$o = array_column($d['json']['sonuc']['olcutler'], null, 'no');
+dogrula($o['O3']['alinan'] === 23 && str_contains($o['O3']['tespit'], 'otomatik artan (AI)'), "SQL kontrolünde kısmi puan ve Tespit (O3: {$o['O3']['alinan']}/25)");
+dogrula($o['O5']['alinan'] === 0 && $o['O4']['alinan'] === 15 && $o['O6']['alinan'] === 10, 'SQL kontrolleri ölçütlere puanlanır');
+$s = $pdo->query("SELECT COUNT(*) FROM lab_verileri WHERE temrin_id = $LID")->fetchColumn();
+dogrula((int)$s === 2, 'laboratuvar verisi saklanır (durum + 1 veritabanı)');
+dogrula($post($OA, '/api/ogretmen.php', ['islem' => 'temrin_sil', 'temrin_id' => $LID, 'onay' => 'TEMRİN SİL'])['durum'] === 200
+    && (int)$pdo->query("SELECT COUNT(*) FROM lab_verileri WHERE temrin_id = $LID")->fetchColumn() === 0, 'temrin silinince laboratuvar verisi de silinir');
+
 echo "Temrin silme\n";
 $sil = fn(array $o, array $g) => $post($o, '/api/ogretmen.php', ['islem' => 'temrin_sil', 'temrin_id' => $TID] + $g);
 dogrula($sil($OA, [])['json']['kod'] === 'ONAY_GEREKLI', 'onaysız silme reddedilir');

@@ -61,21 +61,23 @@ function ciz(v) {
     const govde = el('div', { class: 'temrin-govde' });
     kart.append(govde);
     const ekle = (...c) => govde.append(...c);
-    const adres = `studyo/?temrin=${t.temrin_id}`;
+    const lab = t.ortam === 'laboratuvar';
+    const adres = lab ? `studyo/lab.php?temrin=${t.temrin_id}` : `studyo/?temrin=${t.temrin_id}`;
+    const ac = lab ? 'Laboratuvarı aç' : 'Projeyi aç';
     if (!t.calisma.teslim) {
       ekle(el('p', { class: 'soluk' }, t.calisma.basladi ? 'Çalışmanız kaydedildi, henüz teslim edilmedi.' : 'Henüz başlamadınız.'),
         el('a', { class: 'dugme', href: adres }, t.calisma.basladi ? 'Devam et' : 'Temrine başla'));
       return kart;
     }
     if (!t.sonuc) {
-      ekle(el('p', { class: 'soluk' }, 'Teslim edildi, değerlendiriliyor.'), el('a', { href: adres }, 'Projeyi aç'));
+      ekle(el('p', { class: 'soluk' }, 'Teslim edildi, değerlendiriliyor.'), el('a', { href: adres }, ac));
       return kart;
     }
     const s = t.sonuc;
     const puan = el('div', { class: 'satir' }, el('span', { class: 'buyuk' }, s.puan ?? '–'), el('span', { class: 'soluk' }, '/ 100'));
     if (!s.kesin) puan.append(el('span', { class: 'rozet' }, s.onay?.gerekli && !s.onay.onaylayan && s.olcutler.every(o => o.alinan !== null)
       ? 'Öğretmen onayı bekleniyor' : 'Öğretmen puanlaması bekleniyor'));
-    ekle(puan, el('p', { class: 'soluk' }, `Teslim: ${yerelZaman(s.teslim_zamani)} · `, el('a', { href: adres }, 'Projeyi aç'),
+    ekle(puan, el('p', { class: 'soluk' }, `Teslim: ${yerelZaman(s.teslim_zamani)} · `, el('a', { href: adres }, ac),
       ' · ', el('a', { href: `sayfa.php?temrin_id=${t.temrin_id}`, target: '_blank', rel: 'noopener' }, 'Temrin sayfası')));
     if (s.olcutler.length) {
       ekle(el('div', { class: 'kaydir' }, el('table', {},

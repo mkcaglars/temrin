@@ -34,4 +34,7 @@ return [
     // Sınırlar
     'max_project_bytes' => 3000000,
     'max_projects_per_user' => 200,
+    // Laboratuvar (MySQL simülatörü): veritabanı dosyası boyutu (base64, bayt) ve kullanıcı başına sayı
+    'max_lab_db_bytes' => 4000000,
+    'max_lab_dbs_per_user' => 40,
 ];

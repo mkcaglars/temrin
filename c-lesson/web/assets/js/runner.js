@@ -694,6 +694,13 @@ export class Desktop {
     return item.type !== 'Form' || item.client.contains(target);
   }
 
+  /** IDE kapanınca belgeye eklenen dinleyiciler kaldırılır. */
+  dispose() {
+    this.stop();
+    for (const [type, fn] of this.docListeners || []) document.removeEventListener(type, fn);
+    this.docListeners = [];
+  }
+
   bindDelegated() {
     const root = this.root;
     // Araç çubuğu / menü öğeleri
@@ -704,7 +711,10 @@ export class Desktop {
       if (it?.type === 'TSComboBox') this.dispatch(it.id, 'select', it.select.selectedIndex);
     });
     root.addEventListener('contextmenu', (e) => this.contextMenu(e), true);
-    document.addEventListener('mousedown', (e) => {
+    this.docListeners = [];
+    const onDoc = (type, fn) => { document.addEventListener(type, fn); this.docListeners.push([type, fn]); };
+    this.onDoc = onDoc;
+    onDoc('mousedown', (e) => {
       if (!e.target.closest?.('.wf-tsmenu, .wf-ctxmenu')) {
         this.closeMenus();
         this.closeContext();
@@ -872,7 +882,7 @@ export class Desktop {
       if (item.type === 'ComboBox') this.comboKey(item, e);
       else if (item.type === 'ListBox' || item.type === 'CheckedListBox') this.listKey(item, e);
     });
-    document.addEventListener('mousedown', (e) => {
+    onDoc('mousedown', (e) => {
       for (const it of this.items.values()) {
         if (it.type === 'ComboBox' && it.open && !it.el.contains(e.target)) this.closeCombo(it);
       }

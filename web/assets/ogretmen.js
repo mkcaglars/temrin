@@ -109,7 +109,7 @@ async function duzelt(temrinId, okulNo) {
       el('button', { class: 'ana', onclick: () => kaydet(false) }, 'Kaydet'),
       onayModu ? el('button', { class: 'ana', onclick: () => kaydet(true) }, s.onay.onaylayan ? 'Kaydet ve yeniden onayla' : 'Onayla') : null,
       el('button', { onclick: () => dlg.close() }, 'Vazgeç'),
-      el('a', { href: `studyo/?temrin=${temrinId}&ogrenci=${encodeURIComponent(okulNo)}`, target: '_blank', rel: 'noopener' }, 'Projeyi aç ↗'),
+      el('a', { href: `studyo/?temrin=${temrinId}&ogrenci=${encodeURIComponent(okulNo)}`, target: '_blank', rel: 'noopener' }, 'Çalışmayı aç ↗'),
       el('a', { href: `sayfa.php?temrin_id=${temrinId}&okul_no=${encodeURIComponent(okulNo)}`, target: '_blank', rel: 'noopener' }, 'Temrin sayfası ↗'))));
   dlg.addEventListener('close', () => dlg.remove());
   document.body.append(dlg);
@@ -157,11 +157,6 @@ function motor() {
   motorSozu ??= import(new URL('studyo/assets/js/engine.js', document.baseURI).href).then(m => m.loadEngine());
   motorSozu.catch(() => { motorSozu = null; });
   return motorSozu;
-}
-
-/** Kaydedilmiş c-lesson proje verisinden derleyici girdisi (c-lesson Ide.projectJson ile aynı biçim). */
-function projeJson(veri) {
-  return JSON.stringify({ name: 'Proje', namespace: veri.namespace || 'WinFormsApp', files: (veri.files || []).map(f => ({ name: f.name, content: f.content })), dataFiles: [] });
 }
 
 async function temrinlerPaneli() {
@@ -294,17 +289,37 @@ async function ciktilariHesapla(t) {
   } catch (e) { p.yaz('Hata: ' + e.message); }
 }
 
+let denetimSozu = null;
+/** Laboratuvar kontrolleri ve ortak değerlendirme (studyo/temrin/lab-denetim.js). */
+function denetim() {
+  denetimSozu ??= import(new URL('studyo/temrin/lab-denetim.js', document.baseURI).href);
+  denetimSozu.catch(() => { denetimSozu = null; });
+  return denetimSozu;
+}
+
 async function dogrula(t) {
   const p = ilerleme(`T${t.temrin_no} teslimlerini doğrula`);
   try {
     const { teslimler, kontroller } = await api({ islem: 'teslimler', temrin_id: t.temrin_id, sinif: durum.sinif });
-    const m = await motor();
+    const d = await denetim();
+    const projeVar = kontroller.some(k => !d.labKontrolu(k));
+    const labVar = kontroller.some(d.labKontrolu);
+    const m = projeVar ? await motor() : null;
+    // Program laboratuvardaki MySQL'e bağlanıyorsa motor öğrencinin laboratuvarını kullanır (aynı modül örneği).
+    const kopru = projeVar ? await import(new URL('studyo/assets/js/mysqlbridge.js', document.baseURI).href) : null;
+    let SQL = null;
     let i = 0;
     for (const s of teslimler) {
       p.yaz(`Değerlendiriliyor: ${++i} / ${teslimler.length}`);
       await new Promise(r => setTimeout(r, 0));
       const { veri } = await api({ islem: 'teslim', temrin_id: t.temrin_id, okul_no: s.okul_no });
-      const sonuc = JSON.parse(m.Degerlendir(projeJson(veri || {}), JSON.stringify(kontroller)));
+      let lab = null;
+      if (labVar || (projeVar && d.mysqlKullanir(veri))) {
+        SQL ??= await d.sqlJsYukle(new URL('studyo/lib/sqljs/', document.baseURI).href);
+        lab = await d.labSaltOkunur(t.temrin_id, s.okul_no, SQL);
+        kopru?.attachMysql({ state: lab.store.state, server: lab.server });
+      }
+      const sonuc = d.hepsiniDegerlendir(m, d.kayitliProjeJson(veri), kontroller, lab);
       const r = await api(null, { islem: 'degerlendirme', temrin_id: t.temrin_id, okul_no: s.okul_no, sonuc });
       p.ekle(`${s.okul_no} ${s.ad}: ${r.sonuc.puan ?? '–'}${r.sonuc.kesin ? '' : ' (bekliyor)'}`);
     }

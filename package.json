@@ -7,5 +7,8 @@
   },
   "devDependencies": {
     "monaco-editor": "0.52.2"
+  },
+  "dependencies": {
+    "sql.js": "^1.15.2"
   }
 }

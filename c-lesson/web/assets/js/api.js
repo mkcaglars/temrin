@@ -46,6 +46,19 @@ export const api = {
   setNote: (id, note) => request('POST', `projects/${id}/note`, { note }),
   students: (sinif) => request('GET', 'teacher/students', undefined, { query: sinif ? { sinif } : null }),
   studentProjects: (id) => request('GET', `teacher/students/${id}/projects`),
+  // Laboratuvar (MySQL simülatörü)
+  labState: () => request('GET', 'lab/state'),
+  saveLabState: (state, opts = {}) => request('PUT', 'lab/state', { state }, { keepalive: opts.keepalive }),
+  labDatabase: (name) => request('GET', `lab/databases/${encodeURIComponent(name)}`),
+  saveLabDatabase: (name, data, opts = {}) => request('PUT', `lab/databases/${encodeURIComponent(name)}`, { data }, { keepalive: opts.keepalive }),
+  deleteLabDatabase: (name) => request('DELETE', `lab/databases/${encodeURIComponent(name)}`),
+  distributeLabDatabase: (name, opts) => request('POST', `lab/databases/${encodeURIComponent(name)}/distribute`, opts),
+  labTasks: () => request('GET', 'lab/tasks'),
+  createLabTask: (task) => request('POST', 'lab/tasks', task),
+  saveLabTask: (id, task) => request('PUT', `lab/tasks/${id}`, task),
+  deleteLabTask: (id) => request('DELETE', `lab/tasks/${id}`),
+  saveLabProgress: (key, data, done) => request('PUT', `lab/progress/${encodeURIComponent(key)}`, { data, done }),
+  labProgress: (sinif) => request('GET', 'teacher/lab-progress', undefined, { query: { sinif } }),
 };
 
 /** Sunucunun UTC tarihini yerel saatle okunur biçime çevirir. */

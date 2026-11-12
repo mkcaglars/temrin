@@ -1,0 +1,34 @@
+﻿tur;no;olcut;puan;tip;hedef;girdi;beklenen;metin;tespit
+bilgi;ders;;;;;;;Programlama (C#);
+bilgi;temrin_no;;;;;;;13;
+bilgi;baslik;;;;;;;ADO.NET ile MySQL;
+bilgi;sinif;;;;;;;11 Donanım B;
+bilgi;islem_konusu;;;;;;;"MySqlConnection, MySqlCommand ve MySqlDataReader ile veritabanından kayıt listeleme ve parametreli sorguyla kayıt ekleme";
+bilgi;proje_adi;;;;;;;PersonelApp;
+bilgi;ortam;;;;;;;ikisi;
+bilgi;lab_sifre;;;;;;;1234;
+bilgi;sure_dk;;;;;;;80;
+bilgi;ogretmen;;;;;;;Mustafa Kemal Çağlar;
+hazirlik;1;;;;;;;"CREATE DATABASE sirket;
+CREATE TABLE sirket.personel (id INT AUTO_INCREMENT PRIMARY KEY, ad VARCHAR(50) NOT NULL, bolum VARCHAR(30));
+INSERT INTO sirket.personel (ad, bolum) VALUES ('Ali Yılmaz', 'Bilgi İşlem'), ('Ayşe Demir', 'Muhasebe'), ('Mehmet Kaya', 'Satış');";
+arac;1;;;;;;;Bilgisayar;
+arac;2;;;;;;;"C# Form Stüdyosu ve Temrin Laboratuvarı (sirket veritabanı hazır; root şifresi 1234)";
+islem;1;;;;;;;"Laboratuvar düğmesiyle laboratuvarı aç; Workbench'te sirket.personel tablosundaki kayıtları incele.";
+islem;2;;;;;;;"Stüdyo'da Proje > Manage NuGet Packages ile MySql.Data paketini ekle.";
+islem;3;;;;;;;"Forma lstPersonel (ListBox), txtAd (TextBox), btnListele ve btnEkle (Button) ekle.";
+islem;4;;;;;;;"Bağlantı cümlesi: Server=localhost;Database=sirket;Uid=root;Pwd=1234;";
+islem;5;;;;;;;"btnListele: lstPersonel'i temizle; SELECT ad FROM personel ORDER BY id sorgusunun sonucunu MySqlDataReader ile lstPersonel'e ekle.";
+islem;6;;;;;;;"btnEkle: txtAd'daki adı parametreli INSERT komutuyla (@ad, Parameters.AddWithValue) personel tablosuna ekle.";
+olcut;O1;;10;ogretmen;;;;İş sağlığı ve güvenliği kurallarına uyulması;
+olcut;O2;;10;sure;;;;Sürenin doğru kullanılması;
+olcut;O3;;20;otomatik;;;;Projenin ve form kontrollerinin kurulması;
+kontrol;K1;O3;10;derleme;;;;Proje hatasız derlenir;Proje derlenmiyor
+kontrol;K2;O3;10;kontrol_var;"lstPersonel;txtAd;btnListele;btnEkle";;;Kontroller var;
+olcut;O4;;30;otomatik;;;;MySqlConnection ve MySqlDataReader ile kayıtların listelenmesi;
+kontrol;K3;O4;10;kod_icerir;btnListele.Click;;"MySqlConnection(";Bağlantı nesnesi kullanılmış;btnListele'de MySqlConnection kullanılmamış
+kontrol;K4;O4;20;calistir;btnListele;;lstPersonel=Ali Yılmaz|Ayşe Demir|Mehmet Kaya;Kayıtlar listelenir;Kayıtlar veritabanından listelenmiyor
+olcut;O5;;30;otomatik;;;;Parametreli sorguyla kayıt eklenmesi;
+kontrol;K5;O5;10;kod_icerir;btnEkle.Click;;"Parameters.AddWithValue(
+Parameters.Add(";Parametreli sorgu kullanılmış;btnEkle'de parametreli sorgu (Parameters.AddWithValue) yok
+kontrol;K6;O5;20;calistir;"btnEkle;btnListele";txtAd=Zeynep Çelik;lstPersonel=Ali Yılmaz|Ayşe Demir|Mehmet Kaya|Zeynep Çelik;Yeni kayıt eklenir;txtAd'daki ad tabloya eklenmiyor

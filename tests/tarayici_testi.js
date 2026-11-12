@@ -124,8 +124,9 @@ async function motorHazir(sayfa) {
     const p = await ctx.newPage();
     p.on('pageerror', (e) => hatalar.push(`${ad}: ${e.message}`));
     // Uygulamanın kendisinin karşıladığı 4xx yanıtları (ör. hatalı CSV → 400) hata sayılmaz.
-    p.on('console', (m) => { if (m.type() === 'error' && !/favicon|status of 4\d\d/.test(m.text())) hatalar.push(`${ad} konsol: ${m.text()}`); });
+    p.on('console', (m) => { if (process.env.HATA_DOK) console.log(`[${ad} ${m.type()}] ${m.text()}`); if (m.type() === 'error' && !/favicon|status of 4\d\d/.test(m.text())) hatalar.push(`${ad} konsol: ${m.text()}`); });
     p.on('dialog', (d) => d.accept());
+    if (process.env.HATA_DOK) p.on('response', (r) => { if (r.status() >= 400) console.log('[404?]', r.status(), r.url()); });
     return p;
   };
   try {
@@ -247,6 +248,168 @@ async function motorHazir(sayfa) {
       await ogr.screenshot({ path: path.join(process.env.EKRAN, 'ogretmen-ayrinti.png') });
     }
 
+    console.log('Laboratuvar temrini (MySQL simülatörü)');
+    await ogr.goto(`${ADRES}/`);
+    await ogr.click('text=Temrinler');
+    await ogr.setInputFiles('input[type=file]', path.join(KOK, 'sablon/temrin-lab-sql-komutlari.csv'));
+    await ogr.click('button:has-text("Yükle")');
+    await ogr.waitForSelector('text=Temrin 12 (SQL Komutları) yüklendi');
+    await ogr.selectOption('select', '11 Donanım B');
+    await ogr.click('text=Temrin erişimi');
+    const labSatiri = ogr.locator('tr:has-text("SQL Komutları")');
+    await labSatiri.locator('input[type=checkbox]').check();
+    await labSatiri.locator('button:has-text("Kaydet")').click();
+    await labSatiri.locator('text=Öğrenciler girebilir').waitFor();
+    dogrula(true, 'laboratuvar temrini yüklendi ve sınıfa açıldı');
+
+    const lb = await yeniSayfa('Deniz Yıldız');
+    await lb.goto(ogrenciGirisi('5151', 'Deniz Yıldız'));
+    await lb.locator('details.temrin:has-text("SQL Komutları") >> text=Temrine başla').click();
+    await lb.waitForURL(/lab\.php/);
+    await lb.waitForSelector('.lab-desktop .lab-icon:has-text("MySQL Workbench")', { timeout: 60000 });
+    await lb.waitForSelector('.temrin-panel:has-text("SQL Komutları")');
+    dogrula(true, 'öğrenci laboratuvar ekranına gelir: MySQL ve Workbench hazır kurulu, görev paneli açık');
+    await lb.locator('.lab-icon:has-text("MySQL Workbench")').dblclick();
+    await lb.waitForSelector('.lab-win-title:has-text("MySQL Workbench")');
+    dogrula(await lb.locator('text=Local instance').count() > 0, 'Workbench açılır, Local instance bağlantısı hazır');
+    // Öğrencinin Workbench'te yazacağı komutlar (root şifresi temrindeki lab_sifre).
+    const sqlSonuc = await lb.evaluate(() => {
+      const s = window.__lab.server.connect('root', '1234');
+      return s.execute(`CREATE DATABASE sirket; USE sirket;
+        CREATE TABLE personel (id INT AUTO_INCREMENT PRIMARY KEY, ad VARCHAR(50) NOT NULL, bolum VARCHAR(30), maas DECIMAL(10,2));
+        INSERT INTO personel (ad, bolum, maas) VALUES ('Ali Yılmaz','Bilgi İşlem',7000),('Ayşe Demir','Muhasebe',5000),('Mehmet Kaya','Satış',4500),('Zeynep Çelik','Muhasebe',6000),('Can Öztürk','Satış',4000);
+        UPDATE personel SET maas = maas * 1.1 WHERE bolum = 'Muhasebe';
+        DELETE FROM personel WHERE ad = 'Can Öztürk';`).map((r) => r.ok);
+    });
+    dogrula(sqlSonuc.every(Boolean), 'SQL komutları laboratuvarda çalışır');
+    await lb.waitForSelector('.lab-save.ok', { timeout: 20000 });
+    await lb.reload();
+    await lb.waitForSelector('.temrin-panel');
+    await lb.waitForFunction(() => window.__lab?.server.hasDb('sirket'), null, { timeout: 30000 });
+    dogrula(true, 'laboratuvar kaydedilir, sayfa yenilenince veritabanı yerinde');
+    await lb.locator('.tp-secenekler input[value=B]').check();
+    await lb.waitForTimeout(1200);
+    await lb.click('.tp-teslim');
+    await lb.click('.modal button:has-text("Teslim et")');
+    await lb.waitForSelector('.tp-sonuc .tp-puan', { timeout: 60000 });
+    const labPuan = (await lb.locator('.tp-puan .buyuk').textContent()).trim();
+    dogrula(labPuan === '75', `veritabanı otomatik denetlenir: 75 (öğretmen ölçütü ve açık uçlu soru bekliyor) — bulunan ${labPuan}`);
+    dogrula(await lb.locator('.ide-banner:has-text("teslim edildi")').count() === 1, 'teslimden sonra laboratuvar salt okunur');
+    const labTemrin = new URL(lb.url()).searchParams.get('temrin');
+
+    await ogr.goto(`${ADRES}/`);
+    await ogr.click('text=Temrinler');
+    await ogr.locator('tr:has-text("SQL Komutları") button:has-text("Teslimleri doğrula")').click();
+    await ogr.waitForSelector('text=teslim doğrulandı', { timeout: 120000 });
+    const labListe = await ogr.locator('dialog li').allTextContents();
+    dogrula(labListe.some((l) => l.includes('5151') && l.includes('75')), `öğretmen doğrulaması öğrencinin laboratuvarını yeniden denetler (${labListe.join(' | ')})`);
+    await ogr.click('dialog button:has-text("Kapat")');
+    const labOgr = await yeniSayfa('öğretmen-lab');
+    await labOgr.context().addCookies(await ogr.context().cookies());
+    await labOgr.goto(`${ADRES}/studyo/?temrin=${labTemrin}&ogrenci=5151`);
+    await labOgr.waitForURL(/lab\.php/);
+    await labOgr.waitForSelector('.ide-banner:has-text("Salt okunur")');
+    await labOgr.waitForFunction(() => window.__lab?.server.hasDb('sirket'), null, { timeout: 30000 });
+    dogrula(true, 'öğretmen öğrencinin laboratuvarını salt okunur açar');
+    if (process.env.EKRAN) await lb.screenshot({ path: path.join(process.env.EKRAN, 'laboratuvar.png') });
+
+    console.log('C# + MySQL temrini (ADO.NET, laboratuvardaki veritabanı)');
+    await ogr.goto(`${ADRES}/`);
+    await ogr.click('text=Temrinler');
+    await ogr.setInputFiles('input[type=file]', path.join(KOK, 'sablon/temrin-lab-ado-net.csv'));
+    await ogr.click('button:has-text("Yükle")');
+    await ogr.waitForSelector('text=Temrin 13 (ADO.NET ile MySQL) yüklendi');
+    await ogr.selectOption('select', '11 Donanım B');
+    await ogr.click('text=Temrin erişimi');
+    const adoSatiri = ogr.locator('tr:has-text("ADO.NET ile MySQL")');
+    await adoSatiri.locator('input[type=checkbox]').check();
+    await adoSatiri.locator('button:has-text("Kaydet")').click();
+    await adoSatiri.locator('text=Öğrenciler girebilir').waitFor();
+    const ado = await yeniSayfa('Ece Kara');
+    await ado.goto(ogrenciGirisi('6161', 'Ece Kara'));
+    await ado.locator('details.temrin:has-text("ADO.NET ile MySQL") >> text=Temrine başla').click();
+    await ado.waitForSelector('.temrin-panel');
+    dogrula(await ado.locator('.ide-top a:has-text("Laboratuvar")').count() === 1, 'C# + laboratuvar temrininde Stüdyo\'da Laboratuvar düğmesi var');
+    await ado.evaluate(async () => {
+      const { TEMPLATES } = await import('./assets/js/templates.js');
+      const { calismaYukle } = await import('./assets/js/api.js');
+      const d = TEMPLATES[0].create('PersonelApp');
+      const k = (type, name, x, y, w, hh, text, click) => ({ type, name, props: { Location: [x, y], Size: [w, hh], Text: text, TabIndex: 0 }, events: click ? { Click: click } : {} });
+      d.forms.Form1.controls = [k('ListBox', 'lstPersonel', 20, 20, 200, 160, ''), k('TextBox', 'txtAd', 240, 20, 120, 23, ''),
+        k('Button', 'btnListele', 240, 56, 120, 28, 'Listele', 'btnListele_Click'), k('Button', 'btnEkle', 240, 92, 120, 28, 'Ekle', 'btnEkle_Click')];
+      delete d.forms.Form1.controls[0].props.Text;
+      d.references = ['MySql.Data'];
+      d.files.find((f) => f.name === 'Form1.cs').content = `using System;
+using System.Windows.Forms;
+using MySql.Data.MySqlClient;
+
+namespace PersonelApp
+{
+    public partial class Form1 : Form
+    {
+        const string Baglanti = "Server=localhost;Database=sirket;Uid=root;Pwd=1234;";
+        public Form1() { InitializeComponent(); }
+        private void btnListele_Click(object sender, EventArgs e)
+        {
+            lstPersonel.Items.Clear();
+            using (var bag = new MySqlConnection(Baglanti))
+            {
+                bag.Open();
+                var kmt = new MySqlCommand("SELECT ad FROM personel ORDER BY id", bag);
+                using (var oku = kmt.ExecuteReader())
+                    while (oku.Read()) lstPersonel.Items.Add(oku["ad"].ToString());
+            }
+        }
+        private void btnEkle_Click(object sender, EventArgs e)
+        {
+            using (var bag = new MySqlConnection(Baglanti))
+            {
+                bag.Open();
+                var kmt = new MySqlCommand("INSERT INTO personel (ad) VALUES (@ad)", bag);
+                kmt.Parameters.AddWithValue("@ad", txtAd.Text);
+                kmt.ExecuteNonQuery();
+            }
+        }
+    }
+}
+`;
+      const durum = await calismaYukle();
+      const r = await fetch('../api/calisma.php', { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name=csrf]').content },
+        body: JSON.stringify({ islem: 'kaydet', temrin_id: durum.temrin.temrin_id, veri: d, surum: durum.calisma.surum }) });
+      if (!r.ok) throw new Error('kaydet ' + r.status + ' ' + await r.text());
+    });
+    await ado.reload();
+    await ado.waitForSelector('.temrin-panel');
+    await motorHazir(ado);
+    // Laboratuvar ilk açılışta hazırlanır: hazırlık SQL'i sirket.personel'i kurar.
+    await ado.waitForFunction(async () => {
+      const r = await fetch('../api/calisma.php?' + new URLSearchParams({ temrin_id: document.body.dataset.temrin, lab: 'durum' }), { credentials: 'same-origin' });
+      return (await r.json()).databases?.some((d) => d.name === 'sirket');
+    }, null, { timeout: 60000, polling: 1000 });
+    dogrula(true, 'Stüdyo açılınca laboratuvar hazırlanır (hazırlık SQL\'i, MySQL hazır kurulu)');
+    await ado.click('.ide-top button:has-text("Teslim et")');
+    await ado.click('.modal button:has-text("Teslim et")');
+    await ado.waitForSelector('.tp-sonuc .tp-puan', { timeout: 180000 });
+    const adoPuan = (await ado.locator('.tp-puan .buyuk').textContent()).trim();
+    const adoTespit = await ado.locator('.tp-tespit').allTextContents();
+    dogrula(adoPuan === '90', `C# programı laboratuvardaki MySQL ile test edilir: 90 (öğretmen ölçütü bekliyor) — bulunan ${adoPuan} ${adoTespit.join(' | ')}`);
+    // Değerlendirmede programın eklediği kayıt laboratuvara kaydedilmez.
+    const adoVt = await ado.evaluate(async () => {
+      const { ensureMysql } = await import('./assets/js/mysqlbridge.js');
+      const { store } = await ensureMysql({});
+      const s = store.server.connect('root', '1234');
+      return s.execute('SELECT COUNT(*) FROM sirket.personel')[0].rows[0][0];
+    });
+    dogrula(Number(adoVt) === 3, `değerlendirme laboratuvarı değiştirmez (personel: ${adoVt} kayıt)`);
+    await ogr.goto(`${ADRES}/`);
+    await ogr.click('text=Temrinler');
+    await ogr.locator('tr:has-text("ADO.NET ile MySQL") button:has-text("Teslimleri doğrula")').click();
+    await ogr.waitForSelector('text=teslim doğrulandı', { timeout: 180000 });
+    const adoListe = await ogr.locator('dialog li').allTextContents();
+    dogrula(adoListe.some((l) => l.includes('6161') && l.includes('90')), `öğretmen doğrulaması programı öğrencinin laboratuvarıyla çalıştırır (${adoListe.join(' | ')})`);
+    await ogr.click('dialog button:has-text("Kapat")');
+
     console.log('Öğretmen: onay modu');
     await ogr.goto(`${ADRES}/`);
     await ogr.click('text=Temrinler');
@@ -266,13 +429,15 @@ async function motorHazir(sayfa) {
     await onayKutusu.fill('TEMRİN SİL');
     dogrula(!(await onayla.isDisabled()), 'TEMRİN SİL yazılınca "Onayla" etkin');
     await onayla.click();
-    await ogr.waitForSelector('text=Bu derste henüz temrin yok.');
-    dogrula(true, 'teslim almış temrin onayla silindi');
+    await ogr.waitForSelector('dialog', { state: 'detached' });
+    await ogr.waitForSelector('td:has-text("SQL Komutları")');
+    dogrula(await ogr.locator('td:has-text("Döngüler")').count() === 0, 'teslim almış temrin onayla silindi (diğer temrin kalır)');
 
     dogrula(hatalar.length === 0, 'tarayıcıda hata yok' + (hatalar.length ? ': ' + hatalar.join(' | ') : ''));
   } catch (e) {
     hatali++;
     console.log('  ✗ test yarıda kaldı: ' + e.message);
+    if (process.env.EKRAN) for (const [i, p] of tarayici.contexts().flatMap((c) => c.pages()).entries()) await p.screenshot({ path: path.join(process.env.EKRAN, `hata-${i}.png`) }).catch(() => {});
     if (hatalar.length) console.log('    tarayıcı hataları: ' + hatalar.join(' | '));
   } finally {
     await tarayici.close();

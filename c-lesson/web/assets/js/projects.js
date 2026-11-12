@@ -1,21 +1,24 @@
 // "Projelerim" sayfası: proje listesi, yeni proje, yeniden adlandırma, kopyalama, silme.
 import { api, formatDate } from './api.js';
-import { h, modal, toast, confirmBox, promptBox } from './ui.js';
+import { h, modal, toast, confirmBox, promptBox, download, asciiFileName } from './ui.js';
 import { TEMPLATES, toNamespace } from './templates.js';
 import { distributeDialog } from './teacher.js';
+import { themeButton } from './theme.js';
 
 export function topBar(ctx, active) {
   const u = ctx.user;
   return h('header', { class: 'topbar' },
-    h('a', { class: 'brand', href: '#/' }, h('span', { class: 'brand-logo' }, 'C#'), h('span', {}, 'Form Stüdyosu')),
+    h('a', { class: 'brand', href: '#/' }, h('img', { class: 'brand-logo', src: 'assets/img/icon.svg', alt: '' }), h('span', {}, 'Form Stüdyosu')),
     h('nav', { class: 'topnav' },
       h('a', { href: '#/', class: active === 'projects' ? 'active' : '' }, 'Projelerim'),
-      u.role === 'ogretmen' ? h('a', { href: '#/ogretmen', class: active === 'teacher' ? 'active' : '' }, 'Öğretmen Paneli') : null),
+      u.role === 'ogretmen' ? h('a', { href: '#/ogretmen', class: active === 'teacher' ? 'active' : '' }, 'Öğretmen Paneli') : null,
+      h('a', { href: 'lab.html', target: '_blank', title: 'MySQL kurulumu, Workbench, yedekleme… (sanal bilgisayar)' }, 'Laboratuvar')),
     h('div', { class: 'spacer' }),
     h('div', { class: 'user-chip' },
       h('span', { class: 'avatar' }, initials(u.name)),
       h('span', { class: 'user-name' }, u.name),
       h('span', { class: 'badge ' + (u.role === 'ogretmen' ? 'badge-teacher' : '') }, u.role === 'ogretmen' ? 'Öğretmen' : (u.sinif || 'Öğrenci'))),
+    themeButton(),
     h('a', { class: 'btn btn-ghost', href: 'cikis.php', title: 'Oturumu kapat' }, 'Çıkış'));
 }
 
@@ -45,7 +48,9 @@ export class ProjectsView {
     this.main.innerHTML = '';
     this.main.appendChild(h('div', { class: 'page-head' },
       h('div', {}, h('h1', {}, 'Projelerim'), h('p', { class: 'muted' }, 'Projeleriniz otomatik kaydedilir; hangi bilgisayardan girerseniz girin kaldığınız yerden devam edebilirsiniz.')),
-      h('button', { class: 'btn btn-primary btn-lg', onclick: () => this.newProject() }, '+ Yeni Proje')));
+      h('div', { class: 'page-head-btns' },
+        this.ctx.user.role === 'ogretmen' ? h('button', { class: 'btn btn-lg', title: 'Bilgisayarınızdaki proje dosyasını (.json) yükleyip açın', onclick: () => this.importProjects() }, '\u2B06 Proje yükle') : null,
+        h('button', { class: 'btn btn-primary btn-lg', onclick: () => this.newProject() }, '+ Yeni Proje'))));
     const grid = h('div', { class: 'project-grid' }, h('div', { class: 'muted' }, 'Yükleniyor…'));
     this.main.appendChild(grid);
     let projects;
@@ -81,6 +86,7 @@ export class ProjectsView {
         h('button', { class: 'btn btn-sm', title: 'Yeniden adlandır', onclick: () => this.rename(p) }, 'Adlandır'),
         h('button', { class: 'btn btn-sm', title: 'Kopyasını oluştur', onclick: () => this.copy(p) }, 'Kopyala'),
         this.ctx.user.role === 'ogretmen' ? h('button', { class: 'btn btn-sm', title: 'Seçtiğiniz sınıftaki öğrencilerin her birine kopyala', onclick: () => distributeDialog(p) }, 'Sınıfa gönder') : null,
+        this.ctx.user.role === 'ogretmen' ? h('button', { class: 'btn btn-sm', title: 'Projeyi .json dosyası olarak indir (Proje yükle ile geri yüklenebilir)', onclick: () => this.exportJson(p) }, 'JSON indir') : null,
         h('button', { class: 'btn btn-sm btn-danger-ghost', title: 'Sil', onclick: () => this.remove(p) }, 'Sil')));
   }
 
@@ -128,6 +134,70 @@ export class ProjectsView {
     }
   }
 
+  /** Öğretmen: .json proje dosyalarını yükler (tek proje, {name, data}, dizi ya da veritabanı satırı dışa aktarımı) */
+  importProjects() {
+    const input = h('input', { type: 'file', accept: '.json,application/json', multiple: true, style: { display: 'none' } });
+    document.body.appendChild(input);
+    input.onchange = async () => {
+      const files = [...input.files];
+      input.remove();
+      if (!files.length) return;
+      const found = [];
+      const errors = [];
+      for (const f of files) {
+        try {
+          const json = JSON.parse(await f.text());
+          const list = extractProjects(json, f.name.replace(/\.json$/i, ''));
+          if (!list.length) throw new Error('Dosyada proje bulunamadı (files ve forms alanları olan bir proje JSON\'u bekleniyor).');
+          found.push(...list);
+        } catch (e) {
+          errors.push(`${f.name}: ${e.message}`);
+        }
+      }
+      if (!found.length) { toast(errors.join('\n') || 'Proje bulunamadı.', 'error'); return; }
+      // ad kontrolü ve onay
+      const rows = found.map((p) => {
+        const inp = h('input', { class: 'input', value: p.name, spellcheck: 'false' });
+        p.input = inp;
+        const forms = Object.keys(p.data.forms || {}).length;
+        const cs = (p.data.files || []).filter((x) => /\.cs$/i.test(x.name)).length;
+        return h('div', { class: 'field' }, h('label', {}, `${forms} form, ${cs} kod dosyası${p.data.database ? ', veritabanı' : ''}`), inp);
+      });
+      const r = await modal({
+        title: 'Proje yükle',
+        width: 520,
+        body: h('div', {}, ...rows, errors.length ? h('div', { class: 'alert alert-error' }, errors.join('\n')) : null),
+        buttons: [{ text: 'Vazgeç', value: null }, { text: found.length > 1 ? `${found.length} projeyi yükle` : 'Yükle ve aç', value: 'ok', primary: true }],
+      });
+      if (r !== 'ok') return;
+      let lastId = null;
+      let ok = 0;
+      for (const p of found) {
+        try {
+          const res = await api.createProject(p.input.value.trim() || p.name, p.data);
+          lastId = res.id;
+          ok++;
+        } catch (e) {
+          toast(`${p.name}: ${e.message}`, 'error');
+        }
+      }
+      if (ok === 1 && found.length === 1) { location.hash = `#/proje/${lastId}`; return; }
+      if (ok) toast(`${ok} proje yüklendi.`, 'success');
+      this.load();
+    };
+    input.click();
+  }
+
+  async exportJson(p) {
+    try {
+      const full = await api.getProject(p.id);
+      const text = JSON.stringify({ name: full.name, data: full.data }, null, 2);
+      download(`${asciiFileName(p.name)}.json`, new TextEncoder().encode(text), 'application/json');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
   async rename(p) {
     const name = await promptBox('Yeniden adlandır', 'Yeni proje adı', p.name);
     if (!name || name === p.name) return;
@@ -162,4 +232,46 @@ export class ProjectsView {
       toast(e.message, 'error');
     }
   }
+}
+
+/** Yüklenen JSON içinden projeleri çıkarır. Döner: [{ name, data }] */
+export function extractProjects(json, fallbackName) {
+  const out = [];
+  const isData = (d) => d && typeof d === 'object' && !Array.isArray(d) && Array.isArray(d.files) && d.files.some((f) => f && typeof f.name === 'string');
+  const visit = (x, name) => {
+    if (x == null) return;
+    if (typeof x === 'string') {
+      // veritabanından dışa aktarılan satırda data alanı metin olabilir
+      try { visit(JSON.parse(x), name); } catch { /* proje değil */ }
+      return;
+    }
+    if (Array.isArray(x)) { x.forEach((y, i) => visit(y, x.length > 1 ? `${name} ${i + 1}` : name)); return; }
+    if (typeof x !== 'object') return;
+    if (isData(x)) { out.push({ name, data: normalizeData(x) }); return; }
+    if ('data' in x) { visit(x.data, typeof x.name === 'string' && x.name.trim() ? x.name.trim() : name); return; }
+    // phpMyAdmin dışa aktarımı: [{ type: 'table', name: 'projects', data: [...] }] ya da { projects: [...] }
+    for (const k of ['projects', 'rows', 'items']) if (Array.isArray(x[k])) { visit(x[k], name); return; }
+  };
+  visit(json, fallbackName || 'Yüklenen proje');
+  return out;
+}
+
+function normalizeData(d) {
+  const data = JSON.parse(JSON.stringify(d));
+  data.format ??= 1;
+  if (!data.forms || Array.isArray(data.forms)) data.forms = {};
+  // PHP json_decode boş nesneleri ({}) diziye ([]) çevirmiş olabilir
+  const fix = (o) => {
+    if (!o || typeof o !== 'object') return;
+    for (const k of Object.keys(o)) {
+      if ((k === 'props' || k === 'events') && Array.isArray(o[k]) && !o[k].length) o[k] = {};
+      else fix(o[k]);
+    }
+  };
+  fix(data.forms);
+  if (!data.namespace) {
+    const prog = data.files.find((f) => /namespace\s+([\w.]+)/.test(f.content || ''));
+    data.namespace = prog ? /namespace\s+([\w.]+)/.exec(prog.content)[1] : 'WinFormsUygulamasi';
+  }
+  return data;
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/env.php';
 
-const SEMA_SURUMU = 2;
+const SEMA_SURUMU = 3;
 
 function db(): PDO
 {
@@ -106,6 +106,17 @@ function sema_guncelle(PDO $pdo): void
         degerlendirme $metin NULL,
         degerlendiren VARCHAR(10) NULL,
         UNIQUE (temrin_id, okul_no))$son");
+    // Laboratuvar (MySQL simülatörü) verisi: her öğrencinin her temrinde ayrı laboratuvarı vardır.
+    // ad = '' → simülatör durumu (JSON); diğerleri → veritabanı (SQLite dosyası, base64).
+    $buyuk = $sqlite ? 'TEXT' : 'LONGTEXT';
+    $pdo->exec("CREATE TABLE IF NOT EXISTS lab_verileri (
+        temrin_id INT NOT NULL,
+        okul_no VARCHAR(32) NOT NULL,
+        ad VARCHAR(64) NOT NULL,
+        veri $buyuk NOT NULL,
+        boyut INT NOT NULL,
+        guncellenme VARCHAR(20) NOT NULL,
+        PRIMARY KEY (temrin_id, okul_no, ad))$son");
     $pdo->exec("CREATE TABLE IF NOT EXISTS kullanilan_tokenlar (jti VARCHAR(64) PRIMARY KEY, bitis INT NOT NULL)$son");
 
     $pdo->exec('DELETE FROM sema_bilgi');

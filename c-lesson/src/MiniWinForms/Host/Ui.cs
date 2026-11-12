@@ -28,6 +28,8 @@ namespace MiniWinForms
         void Output(string text);
         void Error(string json);
         void ProgramEnded(string reason);
+        /// <summary>MySQL simülatörüne komut iletir (MySql.Data). Yanıt JSON'dır; hata varsa {"error":{...}}.</summary>
+        string Sql(string op, string json);
     }
 
     internal interface IUiTarget
@@ -49,6 +51,9 @@ namespace MiniWinForms
         public void Output(string text) => Log.Add("OUT:" + text);
         public void Error(string json) => Log.Add("ERR:" + json);
         public void ProgramEnded(string reason) => Log.Add("END:" + reason);
+        /// <summary>Testlerde MySQL simülatörünün yerine geçen işlev.</summary>
+        public Func<string, string, string> SqlHandler;
+        public string Sql(string op, string json) => SqlHandler != null ? SqlHandler(op, json) : "{\"error\":{\"code\":1042,\"message\":\"Unable to connect to any of the specified MySQL hosts.\"}}";
     }
 
     /// <summary>.NET tarafındaki nesneler ile tarayıcıdaki DOM öğeleri arasındaki köprü.</summary>
@@ -415,6 +420,14 @@ namespace MiniWinForms
         public static void Exit()
         {
             if (callDepth > 0) callDepth--;
+        }
+
+        /// <summary>Alan başlatıcısı (kurucudan önce çalışır) için özyineleme koruması.</summary>
+        public static T Init<T>(Func<T> value)
+        {
+            Enter();
+            try { return value(); }
+            finally { Exit(); }
         }
 
         internal static void BeginTurn(bool resetDepth = false)

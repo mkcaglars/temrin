@@ -13,17 +13,24 @@ Derslerde kullanmak için web üzerinde çalışan bir **C# Windows Forms** geli
 - Çalışma hatalarında hangi satırda hata olduğu ve Türkçe ipucu gösterilir; sonsuz döngü ve sonsuz özyineleme yakalanır
 - Birden çok proje; her projede birden çok form ve sınıf
 - Otomatik kayıt; aynı proje iki yerde değiştirilirse uyarı verilir
-- Projeyi **Visual Studio projesi (.zip)** olarak indirme (net8.0-windows)
+- Projeyi **Visual Studio projesi (.zip)** olarak indirme: **.NET Framework 4.8** (kitaptaki VS 2019/2022 düzeni: App.config, References, NuGet paketleri, Entity Framework .edmx) ya da **.NET 8**
 - **Menü ve araç çubukları:** MenuStrip'e formda "Buraya yazın" ile öğe ekleme (VS adlandırması: `dosyaToolStripMenuItem`), öğeye çift tıklayınca `Click` metodu; ToolStrip, StatusStrip, ContextMenuStrip, kısayol tuşları
 - **DataGridView:** `Rows.Add`, `Cells["ad"].Value`, `SelectedRows`, `CellClick`, `IsNewRow`, satır renkleri, sıralama, hücre düzenleme; tasarımcıda sütun düzenleyicisi. Visual Studio'daki davranışlar korunur (`Rows.Count` en alttaki yeni satırı da sayar, yeni satır silinemez...)
 - **Dosya iletişim kutuları:** `OpenFileDialog` ile bilgisayardan dosya/resim seçme (`Image.FromFile(ofd.FileName)`), `SaveFileDialog` ile kaydedilen dosya "Çıktı" bölümünden indirilir
 - **Veritabanı (okul.mdf yerine):** "Veritabanı Uygulaması" şablonu, Visual Studio'da veri kümesi sihirbazı ve alanları forma sürükledikten sonra oluşan formun aynısıdır: `OkulDataSet`, `ogrenciBindingSource`, `ogrenciTableAdapter.Fill(...)`, `tableAdapterManager.UpdateAll(...)`, `ogrenciBindingNavigator`, bağlı TextBox/MaskedTextBox/CheckBox ve DataGridView. Arkada gerçek `DataTable` çalışır (`Filter`, `Select`, Türkçe İ/ı karşılaştırmaları). Kayıtlar projeyle birlikte saklanır; `okul.mdf` penceresinden tablo tasarımı ve kayıtlar düzenlenir
+
+**Laboratuvar Simülatörü** (`lab.html`, ayrıntılar: [docs/LABORATUVAR.md](docs/LABORATUVAR.md))
+- Sanal Windows masaüstünde **MySQL kurulumu** (kitaptaki MySQL Installer 8.0 adımları ya da güncel 8.4 + MySQL Configurator), **MySQL Workbench** (sorgular, tablo tasarımı, sonuç tablosunda düzenleme, Safe Updates, EER diyagramı ile ilişki kurma, Data Export / Import ile yedekleme, kullanıcılar), MySQL Command Line Client, Windows Hizmetler
+- Tarayıcıda çalışan, MySQL gibi davranan SQL motoru: MySQL hata kodları ve mesajları, Türkçe harf duyarsız karşılaştırma/sıralama
+- **Görev modu:** kitaptaki hazır görevler ve öğretmenin yazdığı görevler adım adım otomatik denetlenir; öğretmen sınıf ilerlemesini görür ve hazırladığı veritabanını sınıfa dağıtır
+- Stüdyo'dan **MySql.Data** (Add Reference / NuGet) ve **Entity Framework** (ADO.NET Entity Data Model sihirbazı) ile laboratuvardaki veritabanlarına bağlanma; `App.config` + `ConfigurationManager`; **Setup projesi** hazırlayıp laboratuvarda kurma ve masaüstü kısayolundan çalıştırma
 
 **Öğretmen**
 - Sınıf ve öğrenci listesi, son giriş ve son değişiklik tarihleri
 - Tüm projeleri açma, çalıştırma ve test etme (salt okunur, öğrencinin projesi bozulmaz)
 - Öğrenciye proje notu yazma; "Kopyasını al" ile kendi alanına kopyalama
 - **Sınıfa gönder:** hazırladığı projeyi seçtiği sınıftaki öğrencilerin (hepsine ya da seçtiklerine) not ile birlikte kopyalama; aynı adlı projesi olan öğrenci atlanır
+- **Proje yükle / JSON indir:** Projelerim sayfasında *⬆ Proje yükle* ile bilgisayardaki `.json` proje dosyaları (bir ya da birden çok) yüklenip açılır; proje kartındaki *JSON indir* ile proje aynı biçimde kaydedilir. Veritabanından (phpMyAdmin) dışa aktarılan `projects` tablosu JSON'u da kabul edilir
 
 **Desteklenen kontroller:** Form, Button, Label, LinkLabel, TextBox, MaskedTextBox, RichTextBox, CheckBox, RadioButton, ComboBox, ListBox, CheckedListBox, GroupBox, Panel, TabControl, PictureBox, NumericUpDown, DateTimePicker, ProgressBar, TrackBar, DataGridView, MenuStrip, ToolStrip, StatusStrip, ContextMenuStrip, BindingNavigator, Timer, ToolTip, ErrorProvider, BindingSource, OpenFileDialog, SaveFileDialog, MessageBox, `Interaction.InputBox`.
 
@@ -52,6 +59,9 @@ Gerçek WinForms yalnızca Windows'ta çalışır. Bu yüzden `src/MiniWinForms`
 | `src/MiniWinForms` | Tarayıcıda çalışan WinForms taklidi (Form, Button, TextBox…) |
 | `src/Compiler` | Roslyn ile derleme, güvenlik denetimi, sonsuz döngü koruması, IntelliSense, ZIP |
 | `src/Engine` | .NET WebAssembly giriş noktası (JS ↔ .NET köprüsü) |
+| `src/MySqlData` | MySql.Data (Connector/NET) taklidi: komutları tarayıcıdaki MySQL simülatörüne iletir |
+| `src/EntityFramework` | Entity Framework 6 (Database First) taklidi: DbContext, DbSet, SaveChanges |
+| `web/assets/lab` | Laboratuvar simülatörü: masaüstü, MySQL motoru, Workbench, kurulum sihirbazları, görevler |
 | `web/` | Site: `index.html`, `assets/js` (IDE, tasarımcı…), `api/` (PHP), `giris.php` |
 | `tests/` | C# birim testleri (derleme, çalıştırma, kod üretici) |
 | `portal-ornek/` | Okul portalına eklenecek giriş bağlantısı kodu |
@@ -67,6 +77,7 @@ npm install
 cp web/api/config.example.php dist/api/config.php   # SQLite ve test_portal => true ile düzenleyin
 cd dist && php -S localhost:8080             # http://localhost:8080/test-portal.php
 dotnet test tests/Tests                      # testler
+node tests/lab/engine.test.mjs               # MySQL simülatörü testleri
 ```
 
 Belgeler:
@@ -78,6 +89,7 @@ Belgeler:
 - `ShowDialog()`, `MessageBox.Show()` ve `InputBox` bir olay metodunun içindeyse WinForms'taki gibi bekler. `FormClosing` ve `KeyPress` gibi sonucun hemen gerektiği olaylarda tarayıcının kendi pencereleri kullanılır.
 - `Thread.Sleep` yerine `Timer` veya `await Task.Delay(...)` kullanılmalıdır.
 - Henüz desteklenmeyenler: çizim (`Graphics`, `Paint`), `ListView`, `TreeView`, gerçek SQL Server bağlantısı (`SqlConnection`), resim sütunları (Resim alanı laboratuvarda yapılır).
+- MySQL simülatöründe EVENT (zamanlanmış olay), `max_sp_recursion_depth` > 0 ile özyinelemeli yordam, LEFT JOIN'li çok tablolu UPDATE ve tek komutta birden fazla tablodan DELETE desteklenmez.
 - Bilgisayardaki dosyalara doğrudan yol ile (`"C:\\resim.jpg"`) erişilemez; dosya `OpenFileDialog` ile seçilir. Seçilen ve kaydedilen dosyalar sanal `C:/Users/Ogrenci/Belgeler/` klasöründe durur.
 - ZIP'teki veritabanı projesi okul.mdf yerine `okul.xml` dosyasını kullanır (Visual Studio'da da çalışır); gerçek veritabanı için `okul.sql` betiği eklenir.
 - Güvenlik için yansıma (reflection), ağ ve işletim sistemi API'leri öğrenci kodunda kapalıdır.
