@@ -1,0 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Laboratuvar</title>
+<!-- C# Form Stüdyosu'nun "Laboratuvarı aç" menüsü lab.html'i açar: temrinin laboratuvar ekranına yönlendirir. -->
+<script>
+  var q = '';
+  try { q = document.referrer ? new URL(document.referrer).search : ''; } catch (e) { q = ''; }
+  location.replace('lab.php' + q);
+</script>

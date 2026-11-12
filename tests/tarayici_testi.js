@@ -248,6 +248,71 @@ async function motorHazir(sayfa) {
       await ogr.screenshot({ path: path.join(process.env.EKRAN, 'ogretmen-ayrinti.png') });
     }
 
+    console.log('Laboratuvar temrini (MySQL simülatörü)');
+    await ogr.goto(`${ADRES}/`);
+    await ogr.click('text=Temrinler');
+    await ogr.setInputFiles('input[type=file]', path.join(KOK, 'sablon/temrin-lab-sql-komutlari.csv'));
+    await ogr.click('button:has-text("Yükle")');
+    await ogr.waitForSelector('text=Temrin 12 (SQL Komutları) yüklendi');
+    await ogr.selectOption('select', '11 Donanım B');
+    await ogr.click('text=Temrin erişimi');
+    const labSatiri = ogr.locator('tr:has-text("SQL Komutları")');
+    await labSatiri.locator('input[type=checkbox]').check();
+    await labSatiri.locator('button:has-text("Kaydet")').click();
+    await labSatiri.locator('text=Öğrenciler girebilir').waitFor();
+    dogrula(true, 'laboratuvar temrini yüklendi ve sınıfa açıldı');
+
+    const lb = await yeniSayfa('Deniz Yıldız');
+    await lb.goto(ogrenciGirisi('5151', 'Deniz Yıldız'));
+    await lb.locator('details.temrin:has-text("SQL Komutları") >> text=Temrine başla').click();
+    await lb.waitForURL(/lab\.php/);
+    await lb.waitForSelector('.lab-desktop .lab-icon:has-text("MySQL Workbench")', { timeout: 60000 });
+    await lb.waitForSelector('.temrin-panel:has-text("SQL Komutları")');
+    dogrula(true, 'öğrenci laboratuvar ekranına gelir: MySQL ve Workbench hazır kurulu, görev paneli açık');
+    await lb.locator('.lab-icon:has-text("MySQL Workbench")').dblclick();
+    await lb.waitForSelector('.lab-win-title:has-text("MySQL Workbench")');
+    dogrula(await lb.locator('text=Local instance').count() > 0, 'Workbench açılır, Local instance bağlantısı hazır');
+    // Öğrencinin Workbench'te yazacağı komutlar (root şifresi temrindeki lab_sifre).
+    const sqlSonuc = await lb.evaluate(() => {
+      const s = window.__lab.server.connect('root', '1234');
+      return s.execute(`CREATE DATABASE sirket; USE sirket;
+        CREATE TABLE personel (id INT AUTO_INCREMENT PRIMARY KEY, ad VARCHAR(50) NOT NULL, bolum VARCHAR(30), maas DECIMAL(10,2));
+        INSERT INTO personel (ad, bolum, maas) VALUES ('Ali Yılmaz','Bilgi İşlem',7000),('Ayşe Demir','Muhasebe',5000),('Mehmet Kaya','Satış',4500),('Zeynep Çelik','Muhasebe',6000),('Can Öztürk','Satış',4000);
+        UPDATE personel SET maas = maas * 1.1 WHERE bolum = 'Muhasebe';
+        DELETE FROM personel WHERE ad = 'Can Öztürk';`).map((r) => r.ok);
+    });
+    dogrula(sqlSonuc.every(Boolean), 'SQL komutları laboratuvarda çalışır');
+    await lb.waitForSelector('.lab-save.ok', { timeout: 20000 });
+    await lb.reload();
+    await lb.waitForSelector('.temrin-panel');
+    await lb.waitForFunction(() => window.__lab?.server.hasDb('sirket'), null, { timeout: 30000 });
+    dogrula(true, 'laboratuvar kaydedilir, sayfa yenilenince veritabanı yerinde');
+    await lb.locator('.tp-secenekler input[value=B]').check();
+    await lb.waitForTimeout(1200);
+    await lb.click('.tp-teslim');
+    await lb.click('.modal button:has-text("Teslim et")');
+    await lb.waitForSelector('.tp-sonuc .tp-puan', { timeout: 60000 });
+    const labPuan = (await lb.locator('.tp-puan .buyuk').textContent()).trim();
+    dogrula(labPuan === '75', `veritabanı otomatik denetlenir: 75 (öğretmen ölçütü ve açık uçlu soru bekliyor) — bulunan ${labPuan}`);
+    dogrula(await lb.locator('.ide-banner:has-text("teslim edildi")').count() === 1, 'teslimden sonra laboratuvar salt okunur');
+    const labTemrin = new URL(lb.url()).searchParams.get('temrin');
+
+    await ogr.goto(`${ADRES}/`);
+    await ogr.click('text=Temrinler');
+    await ogr.locator('tr:has-text("SQL Komutları") button:has-text("Teslimleri doğrula")').click();
+    await ogr.waitForSelector('text=teslim doğrulandı', { timeout: 120000 });
+    const labListe = await ogr.locator('dialog li').allTextContents();
+    dogrula(labListe.some((l) => l.includes('5151') && l.includes('75')), `öğretmen doğrulaması öğrencinin laboratuvarını yeniden denetler (${labListe.join(' | ')})`);
+    await ogr.click('dialog button:has-text("Kapat")');
+    const labOgr = await yeniSayfa('öğretmen-lab');
+    await labOgr.context().addCookies(await ogr.context().cookies());
+    await labOgr.goto(`${ADRES}/studyo/?temrin=${labTemrin}&ogrenci=5151`);
+    await labOgr.waitForURL(/lab\.php/);
+    await labOgr.waitForSelector('.ide-banner:has-text("Salt okunur")');
+    await labOgr.waitForFunction(() => window.__lab?.server.hasDb('sirket'), null, { timeout: 30000 });
+    dogrula(true, 'öğretmen öğrencinin laboratuvarını salt okunur açar');
+    if (process.env.EKRAN) await lb.screenshot({ path: path.join(process.env.EKRAN, 'laboratuvar.png') });
+
     console.log('Öğretmen: onay modu');
     await ogr.goto(`${ADRES}/`);
     await ogr.click('text=Temrinler');
@@ -267,8 +332,9 @@ async function motorHazir(sayfa) {
     await onayKutusu.fill('TEMRİN SİL');
     dogrula(!(await onayla.isDisabled()), 'TEMRİN SİL yazılınca "Onayla" etkin');
     await onayla.click();
-    await ogr.waitForSelector('text=Bu derste henüz temrin yok.');
-    dogrula(true, 'teslim almış temrin onayla silindi');
+    await ogr.waitForSelector('dialog', { state: 'detached' });
+    await ogr.waitForSelector('td:has-text("SQL Komutları")');
+    dogrula(await ogr.locator('td:has-text("Döngüler")').count() === 0, 'teslim almış temrin onayla silindi (diğer temrin kalır)');
 
     dogrula(hatalar.length === 0, 'tarayıcıda hata yok' + (hatalar.length ? ': ' + hatalar.join(' | ') : ''));
   } catch (e) {

@@ -274,7 +274,7 @@ try {
             baska_sinif_kontrol($k, (int)$t['id'], 'Temrin');
             $pdo = db();
             $pdo->beginTransaction();
-            foreach (['DELETE FROM sonuclar WHERE temrin_id = ?', 'DELETE FROM calismalar WHERE temrin_id = ?',
+            foreach (['DELETE FROM sonuclar WHERE temrin_id = ?', 'DELETE FROM calismalar WHERE temrin_id = ?', 'DELETE FROM lab_verileri WHERE temrin_id = ?',
                       'DELETE FROM temrin_erisim WHERE temrin_id = ?', 'DELETE FROM temrinler WHERE id = ?'] as $sql) {
                 $pdo->prepare($sql)->execute([$t['id']]);
             }

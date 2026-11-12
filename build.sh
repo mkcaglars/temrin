@@ -30,7 +30,7 @@ cp -r "$CLE/web/assets/." "$STUDYO/assets/"
 cp studyo/api.js "$STUDYO/assets/js/api.js"
 rm -f "$STUDYO/assets/js/main.js"
 mkdir -p "$STUDYO/temrin"
-cp studyo/temrin.js studyo/temrin.css studyo/monaco-ortam.js "$STUDYO/temrin/"
+cp studyo/temrin.js studyo/panel.js studyo/lab.js studyo/lab-denetim.js studyo/esneklik.js studyo/temrin.css studyo/monaco-ortam.js "$STUDYO/temrin/"
 cp -r build/motor/wwwroot/_framework "$STUDYO/_framework"
 # Tarayıcı .gz dosyalarını kendisi açar (engine.js); .br dosyalarına gerek yok.
 find "$STUDYO/_framework" -name "*.br" -delete
