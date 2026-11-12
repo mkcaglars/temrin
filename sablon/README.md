@@ -4,6 +4,8 @@ Bir temrin tek bir CSV dosyasıyla tanımlanır ve öğretmen ekranındaki **Tem
 
 - `temrin-sablon.csv`: boş şablon
 - `temrin-3-donguler.csv`: 11 Donanım B, Temrin 3 (Döngüler) ile doldurulmuş örnek
+- `temrin-lab-sql-komutlari.csv`: Laboratuvar temrini (MySQL Workbench; CREATE, INSERT, UPDATE, DELETE)
+- `temrin-lab-ado-net.csv`: C# + laboratuvar temrini (MySqlConnection ile listeleme ve parametreli ekleme)
 
 ## Sütunlar
 
@@ -29,6 +31,11 @@ Alanlar: `ders`, `temrin_no` (zorunlu, dersteki temrin numarası), `baslik` (tab
 - `ad_kesintisi` (varsayılan `0`): Kontrol adı farklı olup aynı işi gören kontrol bulunduğunda kesilecek puan.
 - `ogretmen_onayi` (`Evet`/`Hayır`, varsayılan `Hayır`): Otomatik puan yalnızca öneri olarak gösterilir, öğretmen onaylayınca kesinleşir.
 
+Laboratuvar alanları (aşağıda **Laboratuvar temrinleri**):
+- `ortam`: `studyo` (C# Form Stüdyosu), `laboratuvar` (MySQL simülatörü) ya da `ikisi`. Yazılmazsa kontrollerden anlaşılır.
+- `lab_kurulum` (`hazır`/`kendisi`, varsayılan `hazır`): `hazır` ise MySQL Server ve Workbench kurulu gelir. Kurulum temrini için `kendisi`.
+- `lab_sifre` (varsayılan `1234`): Hazır kurulumda MySQL root şifresi.
+
 **`arac`** ve **`islem`**: "Kullanılan Araç / Gereç…" ve "Yapılacak İşlemler" maddeleri. Sıra `no` sütunundadır.
 
 **`olcut`**: Temrin sayfasındaki değerlendirme satırı. Ölçüt puanlarının toplamı **100** olmalıdır. `tip` değeri:
@@ -40,6 +47,8 @@ Alanlar: `ders`, `temrin_no` (zorunlu, dersteki temrin numarası), `baslik` (tab
 | `otomatik` | Sistem: altındaki kontrol ve soruların toplamı |
 
 **`kontrol`**: Öğrencinin projesi üzerinde yapılan otomatik denetim. Bir ölçütün altında birden çok kontrol olabilir. Kontrollerin `puan` toplamı ölçüt puanına eşit olmalıdır. Böylece **bir program içinde birden çok kazanım** ayrı ayrı puanlanır.
+
+**`hazirlik`**: Laboratuvar temrininde öğrencinin laboratuvarı ilk açıldığında çalışacak SQL (başlangıç veritabanı, tablolar, kayıtlar). `metin` sütununa yazılır; birden çok satır olabilir.
 
 **`soru`**: Programdan ayrı yazılı soru. Bir ölçütün altına bağlanır, puanı o ölçüte eklenir.
 
@@ -94,6 +103,37 @@ Biçim farkı olan sonuç geçer; fark Tespit'e not olarak yazılır, `bicim_kes
 Kontrolün puanı alt parçalarına bölünür: `kontrol_var`'da adlar, `kod_yapisi`'nda `;` grupları, `calistir`'da `||` durumları. Puan = kontrol puanı × geçen oranı (yuvarlanır) − kesinti. Tam puan almayan her kontrolün nedeni Tespit'e yazılır.
 
 Derlenmeyen projede `kod_yapisi` ve `kod_icerir` yine çalışır (yalnızca kodu okurlar); `kontrol_var` ve `calistir` "derlenmediği için denetlenemedi" ile kalır.
+
+## Laboratuvar temrinleri
+
+C# Form Stüdyosu'nun **Laboratuvar Simülatörü** (sanal Windows masaüstü: MySQL Installer, MySQL Workbench, Command Line Client, yedekleme, Setup) temrin ortamı olarak kullanılabilir. Arka planda tarayıcıda çalışan, MySQL gibi davranan bir SQL motoru vardır.
+
+- **Her öğrencinin her temrinde ayrı laboratuvarı vardır.** Öğrencinin başka derslerde ya da temrinlerde yaptıkları bu temrini etkilemez.
+- `ortam` `laboratuvar` ise öğrenci temrini açınca laboratuvar ekranı gelir: solda sanal masaüstü, sağda görev ve sorular paneli. Teslim buradan yapılır.
+- `ortam` `ikisi` ise öğrenci C# Form Stüdyosu'nda çalışır, **🧪 Laboratuvar** düğmesiyle laboratuvarı açar. Programın `MySqlConnection` ile bağlandığı veritabanı bu laboratuvardır. Teslim Stüdyo'dan yapılır.
+- Laboratuvar ilk açıldığında MySQL hazır kurulur (`lab_kurulum`) ve `hazirlik` SQL'i çalışır. Bu bir kez yapılır.
+- Teslimden sonra laboratuvar değiştirilemez. Veritabanları öğrencinin tarayıcısında denetlenir; **Teslimleri doğrula** öğrencinin laboratuvarını sunucudan alıp öğretmenin tarayıcısında yeniden denetler. Öğretmen öğrencinin laboratuvarını **Çalışmayı aç** ile salt okunur açar.
+- C# programı test edilirken (`calistir`) her kontrol laboratuvarın teslim anındaki hâlinden başlar; programın eklediği ya da sildiği kayıtlar kaydedilmez ve sonraki kontrolü etkilemez.
+
+### Laboratuvar kontrol tipleri
+
+| `tip` | `hedef` | `girdi` | `beklenen` | Puanlama |
+|---|---|---|---|---|
+| `mysql_kurulu` | | | | MySQL kurulu ve yapılandırılmış (hizmet durmuşsa yarım puan) |
+| `vt_var` | Veritabanı (`;` ile birden çok) | | | Her veritabanı ayrı puanlanır |
+| `tablo_var` | `vt.tablo` (`;` ile birden çok) | | | Her tablo ayrı puanlanır |
+| `sutun_var` | `vt.tablo.sutun` (`;` ile birden çok) | | Tür ve özellikler (isteğe bağlı): `int pk ai`, `varchar(50) nn`, `decimal(10,2)`. Özellikler: `pk`, `nn`, `ai`, `uq`, `un`, `null` | Sütun yoksa 0; var ama türü/özelliği farklıysa yarım puan |
+| `kayit_sayisi` | `vt.tablo` | | `4`, `>=5`, `<=10`, `3-10` | |
+| `iliski_var` | `vt.tablo` (yabancı anahtarın olduğu tablo) | | Başvurulan tablo (isteğe bağlı) | |
+| `sql_dogru` | Veritabanı | `SELECT` sorgusu | | İlk hücre 0/boş/NULL değilse geçer: `SELECT COUNT(*) = 4 FROM personel` |
+| `sql_sonuc` | Veritabanı | `SELECT` sorgusu | Beklenen satırlar, `\|` ile: `Ali 7000\|Ayşe 5500` | Satır sayısı aynı, satırlar esnek karşılaştırılır (sıra farklıysa da kabul) |
+| `yedek_alindi` | `vt` ya da `vt.tablo` (boş: herhangi biri) | | | Belgeler klasöründe Data Export ile alınmış `.sql` yedeği |
+| `kullanici_var` | MySQL kullanıcı adı (`;` ile birden çok) | | | |
+
+- Denetim sorguları root olarak, öğrencinin veritabanında çalışır; öğrencinin yetkisi ya da Safe Updates ayarı etkilemez.
+- `sql_sonuc` sonucu esnek karşılaştırır: `5500.00` ile `5500`, `ayşe demir` ile `Ayşe Demir` aynıdır. Sayılar birebir aynı olmalıdır.
+- Mantık hatasını yakalamak için tablonun **tamamına** bakın: `UPDATE ... WHERE` unutulursa yalnızca istenen satırlara bakan sorgu bunu görmez.
+- Workbench'te yapılan işlemler (hangi düğmeye basıldığı, hangi sorgunun yazıldığı) denetlenmez; yalnızca sonuç, yani veritabanının son hâli denetlenir. Kurulum adımları için `mysql_kurulu` ve `ogretmen` ölçütü kullanılır.
 
 ## Soru tipleri
 

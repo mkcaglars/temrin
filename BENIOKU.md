@@ -13,20 +13,20 @@ Editör, form tasarımcısı, derleyici ve WinForms çalıştırıcısı [C# For
 | `web/` | Sitenin PHP ve ekran dosyaları |
 | `web/giris.php` | Portaldan gelen SSO girişi |
 | `web/index.php` | Rolüne göre öğrenci ya da öğretmen ana ekranı |
-| `web/studyo/` | Temrin çalışma ekranı (editör + görev/soru/teslim paneli) |
+| `web/studyo/` | Temrin çalışma ekranı (editör + görev/soru/teslim paneli) ve laboratuvar ekranı (`lab.php`: MySQL simülatörü) |
 | `web/api/ogrenci.php` | Öğrencinin temrinleri ve puanları |
 | `web/api/calisma.php` | Öğrencinin çalışması: proje kaydı, cevaplar, teslim, değerlendirme |
 | `web/api/ogretmen.php` | Öğretmen: puan tablosu, ölçüt düzeltme, temrin yükleme, erişim, doğrulama |
 | `web/api/disa-aktar.php` | Öğretmen: puan CSV'si |
 | `web/lib/` | Ortak PHP kodu (web'den açılamaz) |
-| `studyo/` | Çalışma ekranının JavaScript'i ve c-lesson `api.js` uyarlaması |
+| `studyo/` | Çalışma ve laboratuvar ekranlarının JavaScript'i, ortak temrin paneli, laboratuvar kontrolleri (`lab-denetim.js`) ve c-lesson `api.js` uyarlaması |
 | `motor/Degerlendirici/` | Test motoru (C#): CSV kontrollerini öğrenci projesine uygular |
 | `motor/Motor/` | Tarayıcıda çalışan motor: c-lesson motoru + Temrin test motoru (.NET WebAssembly) |
 | `motor/Testler/` | Test motorunun birim testleri |
 | `c-lesson/` | C# Form Stüdyosu kopyası (sürümü `c-lesson/SURUM`; elle değiştirmeyin, güncelleme betiğiyle alın) |
 | `araclar/c-lesson-guncelle.sh` | c-lesson'un yeni sürümünü GitHub'dan alıp `c-lesson/` klasörüne kopyalar |
-| `sablon/` | Temrin CSV şablonu, Temrin 3 örneği ve [biçim açıklaması](sablon/README.md) |
-| `tests/` | Sunucu testi (PHP) ve uçtan uca tarayıcı testi (Playwright) |
+| `sablon/` | Temrin CSV şablonu, örnekler (Temrin 3, laboratuvar, ADO.NET) ve [biçim açıklaması](sablon/README.md) |
+| `tests/` | Sunucu testi (PHP), laboratuvar kontrolleri ve karşılaştırma testleri (Node), uçtan uca tarayıcı testi (Playwright) |
 | `araclar/portal-ornek.php` | Deneme için giriş bağlantısı üretir (portaldaki `temrin-git.php` ile aynı token) |
 | `belgeler/` | Temrin kılavuzu ve örnek temrin sayfası (Word) |
 
@@ -88,7 +88,7 @@ c-lesson'da yapılan düzeltmeler Temrin'e kendiliğinden gelmez; Temrin, `c-les
 ./araclar/c-lesson-guncelle.sh
 ```
 
-Betik c-lesson'un `main` dalının son hâlini alır; belirli bir sürüm için commit numarası verilebilir (`./araclar/c-lesson-guncelle.sh c26ae39`). `c-lesson/` içindeki dosyaları elle değiştirmeyin; bir sonraki güncellemede silinir. Düzeltmeyi c-lesson deposunda yapıp buraya güncelleme betiğiyle alın.
+Betik c-lesson'un varsayılan dalının son hâlini alır; belirli bir sürüm için commit numarası verilebilir (`./araclar/c-lesson-guncelle.sh c26ae39`). `c-lesson/` içindeki dosyaları elle değiştirmeyin; bir sonraki güncellemede silinir. Düzeltmeyi c-lesson deposunda yapıp buraya güncelleme betiğiyle alın.
 
 Ardından değişikliği Temrin'e commit edip `main`'e gönderin; Actions test edip derler, `yayin` dalını günceller, Hostinger çeker (ya da B yolunda `./build.sh` ile yeniden derleyin). Testler, c-lesson'daki bir değişikliğin Temrin'i bozup bozmadığını yüklemeden önce yakalar.
 
@@ -163,9 +163,11 @@ Tüm okuma ve yazma uç noktalarında rol, ders ve sınıf yetkisi sunucuda dene
 
 **Çalışma ekranı:** C# Form Stüdyosu editörü (araç kutusu, form tasarımcısı, kod editörü, IntelliSense, çalıştırma, ZIP indirme) ve sağda temrin paneli (görev, araç-gereç, yapılacak işlemler, ölçütler, sorular, kalan süre, teslim, sonuç).
 
+**Laboratuvar ekranı:** Veri tabanı temrinlerinde (`bilgi;ortam` = `laboratuvar` ya da `ikisi`) C# Form Stüdyosu'nun Laboratuvar Simülatörü: sanal Windows masaüstünde MySQL Server, MySQL Workbench, Command Line Client, yedekleme. Her öğrencinin her temrinde ayrı laboratuvarı vardır; MySQL hazır kurulu gelir, temrinin hazırlık SQL'i bir kez çalışır. Teslimde veritabanlarının son hâli denetlenir (veritabanı, tablo, sütun, kayıt sayısı, ilişki, sorgu sonucu, yedek). `ikisi` temrininde öğrencinin C# programı (`MySqlConnection`) bu laboratuvardaki veritabanına bağlanır ve onunla test edilir. Ayrıntılar: [`sablon/README.md`](sablon/README.md#laboratuvar-temrinleri).
+
 **Öğretmen:**
 - **Puanlar:** Sınıf süzgeci; öğrenci × temrin tablosu; temrin, öğrenci ve sınıf ortalamaları; "bekliyor" rozeti; doğrulananlarda ✓. Puana tıklayınca ölçüt düzeltme, kalem ayrıntısı ve "Projeyi aç".
-- **Temrinler:** CSV yükleme, önizleme, silme, çıktıları hesaplama, teslimleri doğrulama.
+- **Temrinler:** CSV yükleme, önizleme, silme, çıktıları hesaplama, teslimleri doğrulama (laboratuvar temrinlerinde öğrencinin laboratuvarı da yeniden denetlenir).
 - **Temrin erişimi:** Seçilen sınıf için aç/kapat, başlangıç–bitiş zamanı.
 - **CSV indir:** Ekrandaki süzgeçle aynı yetki.
 
@@ -188,13 +190,20 @@ Test motoru (C#, 57 test: Temrin 3 CSV'si doğru ve hatalı çözümlere uygulan
 dotnet test motor/Testler
 ```
 
-Sunucu (PHP, 147 senaryo: giriş, yetki sınırları, CSV yükleme/doğrulama, çalışma, teslim, değerlendirme, kısmi puan ve kesinti, öğretmen onayı, doğrulama, puan CSV'si):
+Sunucu (PHP, 177 senaryo: giriş, yetki sınırları, CSV yükleme/doğrulama, çalışma, teslim, değerlendirme, kısmi puan ve kesinti, öğretmen onayı, laboratuvar verisi ve yetkileri, doğrulama, puan CSV'si):
 
 ```bash
 php tests/sunucu_testi.php
 ```
 
-Uçtan uca tarayıcı testi (Playwright, 30 adım). Önce `./build.sh` çalıştırılmış olmalı:
+Laboratuvar kontrolleri (Node, 22 senaryo: örnek laboratuvar temrini doğru, farklı yazılmış ve hatalı çözümlere uygulanır) ve tarayıcıdaki karşılaştırma (ortak 28 vektör). Önce `./build.sh`:
+
+```bash
+node tests/lab_denetim_testi.mjs
+node tests/esneklik_js_testi.mjs
+```
+
+Uçtan uca tarayıcı testi (Playwright, 44 adım). Önce `./build.sh` çalıştırılmış olmalı:
 
 ```bash
 node tests/tarayici_testi.js
@@ -205,7 +214,10 @@ Var olan bir kuruluma (ör. Apache, boş veritabanıyla) karşı çalıştırmak
 Tarayıcı testinin adımları:
 1. Öğretmen CSV'yi arayüzden yükler, hatalı CSV'nin reddini görür, temrini açar.
 2. İki öğrenci (doğru ve hatalı çözüm) çalışıp teslim eder; test öğrenci tarayıcısında çalışır.
-3. Öğretmen eksik notları girer, teslimleri doğrular, projeyi salt okunur açar, puan CSV'sini indirir, temrin sayfalarını açar, öğretmen onayını açar ve temrini TEMRİN SİL onayıyla siler.
+3. Öğretmen eksik notları girer, teslimleri doğrular, projeyi salt okunur açar, puan CSV'sini indirir, temrin sayfalarını açar.
+4. Laboratuvar temrini: öğrenci laboratuvarda Workbench'i açar, SQL komutlarını çalıştırır, teslim eder; öğretmen laboratuvarı doğrular ve salt okunur açar.
+5. C# + MySQL temrini: öğrencinin programı laboratuvardaki veritabanıyla test edilir, değerlendirme veritabanını değiştirmez; öğretmen doğrular.
+6. Öğretmen onayını açar ve temrini TEMRİN SİL onayıyla siler.
 
 ## Canlı deneme listesi
 

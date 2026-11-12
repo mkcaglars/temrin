@@ -55,6 +55,11 @@ jobs:
       - name: Siteyi derle
         run: ./build.sh
 
+      - name: Laboratuvar kontrolleri ve tarayıcı karşılaştırması (Node)
+        run: |
+          node tests/esneklik_js_testi.mjs
+          node tests/lab_denetim_testi.mjs
+
       - name: Tarayıcı testleri (Playwright)
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.63.0

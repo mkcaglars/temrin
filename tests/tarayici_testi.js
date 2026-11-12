@@ -313,6 +313,103 @@ async function motorHazir(sayfa) {
     dogrula(true, 'öğretmen öğrencinin laboratuvarını salt okunur açar');
     if (process.env.EKRAN) await lb.screenshot({ path: path.join(process.env.EKRAN, 'laboratuvar.png') });
 
+    console.log('C# + MySQL temrini (ADO.NET, laboratuvardaki veritabanı)');
+    await ogr.goto(`${ADRES}/`);
+    await ogr.click('text=Temrinler');
+    await ogr.setInputFiles('input[type=file]', path.join(KOK, 'sablon/temrin-lab-ado-net.csv'));
+    await ogr.click('button:has-text("Yükle")');
+    await ogr.waitForSelector('text=Temrin 13 (ADO.NET ile MySQL) yüklendi');
+    await ogr.selectOption('select', '11 Donanım B');
+    await ogr.click('text=Temrin erişimi');
+    const adoSatiri = ogr.locator('tr:has-text("ADO.NET ile MySQL")');
+    await adoSatiri.locator('input[type=checkbox]').check();
+    await adoSatiri.locator('button:has-text("Kaydet")').click();
+    await adoSatiri.locator('text=Öğrenciler girebilir').waitFor();
+    const ado = await yeniSayfa('Ece Kara');
+    await ado.goto(ogrenciGirisi('6161', 'Ece Kara'));
+    await ado.locator('details.temrin:has-text("ADO.NET ile MySQL") >> text=Temrine başla').click();
+    await ado.waitForSelector('.temrin-panel');
+    dogrula(await ado.locator('.ide-top a:has-text("Laboratuvar")').count() === 1, 'C# + laboratuvar temrininde Stüdyo\'da Laboratuvar düğmesi var');
+    await ado.evaluate(async () => {
+      const { TEMPLATES } = await import('./assets/js/templates.js');
+      const { calismaYukle } = await import('./assets/js/api.js');
+      const d = TEMPLATES[0].create('PersonelApp');
+      const k = (type, name, x, y, w, hh, text, click) => ({ type, name, props: { Location: [x, y], Size: [w, hh], Text: text, TabIndex: 0 }, events: click ? { Click: click } : {} });
+      d.forms.Form1.controls = [k('ListBox', 'lstPersonel', 20, 20, 200, 160, ''), k('TextBox', 'txtAd', 240, 20, 120, 23, ''),
+        k('Button', 'btnListele', 240, 56, 120, 28, 'Listele', 'btnListele_Click'), k('Button', 'btnEkle', 240, 92, 120, 28, 'Ekle', 'btnEkle_Click')];
+      delete d.forms.Form1.controls[0].props.Text;
+      d.references = ['MySql.Data'];
+      d.files.find((f) => f.name === 'Form1.cs').content = `using System;
+using System.Windows.Forms;
+using MySql.Data.MySqlClient;
+
+namespace PersonelApp
+{
+    public partial class Form1 : Form
+    {
+        const string Baglanti = "Server=localhost;Database=sirket;Uid=root;Pwd=1234;";
+        public Form1() { InitializeComponent(); }
+        private void btnListele_Click(object sender, EventArgs e)
+        {
+            lstPersonel.Items.Clear();
+            using (var bag = new MySqlConnection(Baglanti))
+            {
+                bag.Open();
+                var kmt = new MySqlCommand("SELECT ad FROM personel ORDER BY id", bag);
+                using (var oku = kmt.ExecuteReader())
+                    while (oku.Read()) lstPersonel.Items.Add(oku["ad"].ToString());
+            }
+        }
+        private void btnEkle_Click(object sender, EventArgs e)
+        {
+            using (var bag = new MySqlConnection(Baglanti))
+            {
+                bag.Open();
+                var kmt = new MySqlCommand("INSERT INTO personel (ad) VALUES (@ad)", bag);
+                kmt.Parameters.AddWithValue("@ad", txtAd.Text);
+                kmt.ExecuteNonQuery();
+            }
+        }
+    }
+}
+`;
+      const durum = await calismaYukle();
+      const r = await fetch('../api/calisma.php', { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name=csrf]').content },
+        body: JSON.stringify({ islem: 'kaydet', temrin_id: durum.temrin.temrin_id, veri: d, surum: durum.calisma.surum }) });
+      if (!r.ok) throw new Error('kaydet ' + r.status + ' ' + await r.text());
+    });
+    await ado.reload();
+    await ado.waitForSelector('.temrin-panel');
+    await motorHazir(ado);
+    // Laboratuvar ilk açılışta hazırlanır: hazırlık SQL'i sirket.personel'i kurar.
+    await ado.waitForFunction(async () => {
+      const r = await fetch('../api/calisma.php?' + new URLSearchParams({ temrin_id: document.body.dataset.temrin, lab: 'durum' }), { credentials: 'same-origin' });
+      return (await r.json()).databases?.some((d) => d.name === 'sirket');
+    }, null, { timeout: 60000, polling: 1000 });
+    dogrula(true, 'Stüdyo açılınca laboratuvar hazırlanır (hazırlık SQL\'i, MySQL hazır kurulu)');
+    await ado.click('.ide-top button:has-text("Teslim et")');
+    await ado.click('.modal button:has-text("Teslim et")');
+    await ado.waitForSelector('.tp-sonuc .tp-puan', { timeout: 180000 });
+    const adoPuan = (await ado.locator('.tp-puan .buyuk').textContent()).trim();
+    const adoTespit = await ado.locator('.tp-tespit').allTextContents();
+    dogrula(adoPuan === '90', `C# programı laboratuvardaki MySQL ile test edilir: 90 (öğretmen ölçütü bekliyor) — bulunan ${adoPuan} ${adoTespit.join(' | ')}`);
+    // Değerlendirmede programın eklediği kayıt laboratuvara kaydedilmez.
+    const adoVt = await ado.evaluate(async () => {
+      const { ensureMysql } = await import('./assets/js/mysqlbridge.js');
+      const { store } = await ensureMysql({});
+      const s = store.server.connect('root', '1234');
+      return s.execute('SELECT COUNT(*) FROM sirket.personel')[0].rows[0][0];
+    });
+    dogrula(Number(adoVt) === 3, `değerlendirme laboratuvarı değiştirmez (personel: ${adoVt} kayıt)`);
+    await ogr.goto(`${ADRES}/`);
+    await ogr.click('text=Temrinler');
+    await ogr.locator('tr:has-text("ADO.NET ile MySQL") button:has-text("Teslimleri doğrula")').click();
+    await ogr.waitForSelector('text=teslim doğrulandı', { timeout: 180000 });
+    const adoListe = await ogr.locator('dialog li').allTextContents();
+    dogrula(adoListe.some((l) => l.includes('6161') && l.includes('90')), `öğretmen doğrulaması programı öğrencinin laboratuvarıyla çalıştırır (${adoListe.join(' | ')})`);
+    await ogr.click('dialog button:has-text("Kapat")');
+
     console.log('Öğretmen: onay modu');
     await ogr.goto(`${ADRES}/`);
     await ogr.click('text=Temrinler');
