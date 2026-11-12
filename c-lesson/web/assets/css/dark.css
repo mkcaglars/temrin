@@ -1,0 +1,123 @@
+/* C# Form Stüdyosu — karanlık tema (html[data-theme="dark"]).
+   Visual Studio'nun koyu teması gibi: arayüz koyu, tasarlanan ve çalışan Windows formları açık renkli kalır. */
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #16181d;
+  --panel: #1f2228;
+  --panel-2: #24272e;
+  --border: #33373f;
+  --border-strong: #454a54;
+  --text: #e3e6ec;
+  --muted: #9aa2b1;
+  --primary: #8b6cf0;
+  --primary-2: #9d82f5;
+  --primary-soft: #2c2547;
+  --accent: #4aa3f0;
+  --danger: #f0624f;
+  --success: #3cc47a;
+  --warning: #e0a030;
+  --shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* düğmeler, girişler */
+[data-theme="dark"] .btn { background: #2a2e36; color: var(--text); }
+[data-theme="dark"] .btn:hover { background: #343944; }
+[data-theme="dark"] .btn-primary { background: #6a4be0; border-color: #6a4be0; color: #fff; }
+[data-theme="dark"] .btn-primary:hover { background: #7b5ff0; }
+[data-theme="dark"] .btn-ghost { background: transparent; }
+[data-theme="dark"] .btn-ghost:hover { background: rgba(255, 255, 255, 0.07); }
+[data-theme="dark"] .btn-run { background: #12a150; border-color: #0f8a44; }
+[data-theme="dark"] .btn-run:hover { background: #17b55c; }
+[data-theme="dark"] .btn-stop, [data-theme="dark"] .btn-danger { background: #c4321f; border-color: #a52a1a; color: #fff; }
+[data-theme="dark"] .btn-danger-ghost { color: #ff8a7a; }
+[data-theme="dark"] .input, [data-theme="dark"] select.input, [data-theme="dark"] textarea.input { background: #1a1d22; color: var(--text); border-color: var(--border-strong); }
+[data-theme="dark"] .input:focus { box-shadow: 0 0 0 3px rgba(139, 108, 240, 0.25); }
+[data-theme="dark"] .badge { background: #2f3440; color: #c6cdda; }
+[data-theme="dark"] .badge-teacher { background: #3d3016; color: #f0c766; }
+[data-theme="dark"] .alert { background: #1d2a3d; color: #cfe0ff; }
+[data-theme="dark"] .alert-error { background: #3a1d1b; color: #ffb4a8; }
+[data-theme="dark"] .theme-btn { font-size: 15px; padding: 0 8px; }
+
+/* sayfalar */
+[data-theme="dark"] .topbar, [data-theme="dark"] .ide-top { background: var(--panel); }
+[data-theme="dark"] .topnav a { color: var(--muted); }
+[data-theme="dark"] .topnav a:hover { background: #2a2e36; color: var(--text); }
+[data-theme="dark"] .topnav a.active { color: var(--text); }
+[data-theme="dark"] .avatar { background: #343a48; color: #dfe5f2; }
+[data-theme="dark"] .card, [data-theme="dark"] .project-card, [data-theme="dark"] .empty,
+[data-theme="dark"] .table-wrap, [data-theme="dark"] .modal, [data-theme="dark"] .ide-dropdown,
+[data-theme="dark"] .color-pop, [data-theme="dark"] .d-addmenu { background: var(--panel); color: var(--text); }
+[data-theme="dark"] .project-thumb { background: linear-gradient(135deg, #2a2545, #262a3a); }
+[data-theme="dark"] .note-badge { background: #3d3016; color: #f0c766; }
+[data-theme="dark"] .table th, [data-theme="dark"] .table td { border-bottom-color: var(--border); }
+[data-theme="dark"] .table tr.clickable:hover td { background: #2a2640; }
+[data-theme="dark"] .template { background: var(--panel-2); border-color: var(--border); }
+[data-theme="dark"] .template.selected { background: var(--primary-soft); border-color: var(--primary); }
+[data-theme="dark"] .modal-x:hover { background: #2f333c; }
+[data-theme="dark"] .modal-shade { background: rgba(0, 0, 0, 0.6); }
+[data-theme="dark"] .toast { background: #2c313b; }
+
+/* IDE */
+[data-theme="dark"] .ide { background: #121418; }
+[data-theme="dark"] .ide-banner.readonly { background: #3a2f17; border-bottom-color: #5a4a20; }
+[data-theme="dark"] .ide-banner.note { background: #18283d; border-bottom-color: #26405f; }
+[data-theme="dark"] .ide-panel, [data-theme="dark"] .ide-bottom, [data-theme="dark"] .docs, [data-theme="dark"] .dtray { background: var(--panel); }
+[data-theme="dark"] .ide-panel-head, [data-theme="dark"] .props-cat { color: #aeb6c6; }
+[data-theme="dark"] .splitter:hover { background: rgba(139, 108, 240, 0.35); }
+[data-theme="dark"] .tool:hover, [data-theme="dark"] .dtray-item:hover, [data-theme="dark"] .color-sys div:hover { background: #2c2547; }
+[data-theme="dark"] .tool-icon { color: #b9a6ff; }
+[data-theme="dark"] .tabs, [data-theme="dark"] .tab { background: #1b1d22; }
+[data-theme="dark"] .tab { color: #aab2c0; border-right-color: #2c3038; }
+[data-theme="dark"] .tab:hover { background: #24272e; }
+[data-theme="dark"] .tab.active { background: #1e1e1e; color: #fff; }
+[data-theme="dark"] .tab-x { color: #9aa2b1; }
+[data-theme="dark"] .tab-x:hover, [data-theme="dark"] .ti-btn:hover { background: #343944; }
+[data-theme="dark"] .tree-item:hover, [data-theme="dark"] .refm-row:hover, [data-theme="dark"] .nu-item:hover,
+[data-theme="dark"] .efw-item:hover, [data-theme="dark"] .su-row:not(.head):hover, [data-theme="dark"] .mask-editor .mask-row:hover { background: #262a33; }
+[data-theme="dark"] .ti-btn { color: #9aa2b1; }
+[data-theme="dark"] .tree-child2 { color: #aab2c0; }
+[data-theme="dark"] .props-mode button { background: #2a2e36; color: var(--text); }
+[data-theme="dark"] .props-cat { background: #24272e; }
+[data-theme="dark"] .prop-row, [data-theme="dark"] .prop-name { border-color: #2c3038; }
+[data-theme="dark"] .prop-row.selected { background: #2c2547; }
+[data-theme="dark"] .prop-value input, [data-theme="dark"] .prop-value select { background: transparent; color: var(--text); }
+[data-theme="dark"] .prop-value input:focus, [data-theme="dark"] .prop-value select:focus { background: #1a1d22; }
+[data-theme="dark"] .prop-value select option { background: #1f2228; }
+[data-theme="dark"] .prop-value input:read-only { color: #9aa2b1; }
+[data-theme="dark"] .prop-value .more { background: #2a2e36; border-color: #454a54; color: var(--text); }
+[data-theme="dark"] .count { background: #343944; }
+[data-theme="dark"] .count.err { background: #3a1d1b; color: #ff9a8a; }
+[data-theme="dark"] .count.warn { background: #3a2f17; color: #f0c766; }
+[data-theme="dark"] .errors td, [data-theme="dark"] .errors th { border-bottom-color: #2c3038; }
+[data-theme="dark"] .errors th { background: var(--panel); }
+[data-theme="dark"] .errors tr:hover td { background: #2a2640; }
+[data-theme="dark"] .output .o-info { color: #aab2c0; }
+[data-theme="dark"] .ide-status { background: #4a32a8; }
+
+/* form tasarımcısı: yüzey koyu, form açık renkli (Visual Studio koyu teması gibi) */
+[data-theme="dark"] .designer { background: #1e1e1e; }
+[data-theme="dark"] .dsurface { background:
+  linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 16px 16px,
+  linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 16px 16px, #1e1e1e; }
+[data-theme="dark"] .dtray-item { color: var(--text); }
+[data-theme="dark"] .dtray-item.selected { background: #2c2547; border-color: #aaa; }
+[data-theme="dark"] .dinfo { background: rgba(30, 30, 30, 0.85); }
+
+/* veri penceresi, sihirbazlar, diyagramlar */
+[data-theme="dark"] .dataed-sql { background: #1a1d22; }
+[data-theme="dark"] .dataed-grid th { background: #24272e; }
+[data-theme="dark"] .dataed-grid td { border-bottom-color: #2c3038; }
+[data-theme="dark"] .dataed-cell { background: transparent; color: var(--text); }
+[data-theme="dark"] .dataed-cell:focus { background: #1a1d22; }
+[data-theme="dark"] .nu-item, [data-theme="dark"] .efw-item, [data-theme="dark"] .su-row { border-bottom-color: #2c3038; }
+[data-theme="dark"] .efw-title, [data-theme="dark"] .efw-card-ico, [data-theme="dark"] .su-ph { color: #8fb8ff; }
+[data-theme="dark"] .efw-warn { background: #3a2f17; border-color: #6a5420; }
+[data-theme="dark"] .edmx-canvas { background: #1b1d22 repeating-linear-gradient(0deg, transparent 0 19px, #23262d 19px 20px); }
+[data-theme="dark"] .edmx-ent { background: #22252c; border-color: #4a5f88; }
+[data-theme="dark"] .edmx-head { background: #26354f; color: #b9d0ff; }
+[data-theme="dark"] .edmx-sec { background: #1f2228; }
+[data-theme="dark"] .su-node.drop { background: #1d2a3d; }
+[data-theme="dark"] .mask-editor .mask-row.selected { background: #2c2547; }
+[data-theme="dark"] .progress { background: #343944; }
+[data-theme="dark"] .font-sample { background: #fff; color: #000; }

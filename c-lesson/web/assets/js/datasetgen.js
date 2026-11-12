@@ -428,15 +428,16 @@ function tableAdapterCode(db, t) {
   L.push('');
   const nullableType = (c) => (isValueType(c) && c.nullable !== false && !c.pk ? `global::System.Nullable<${netType(c)}>` : netType(c));
   L.push(`        public virtual int Insert(${insertCols.map((c) => `${nullableType(c)} ${c.name}`).join(', ')}) {`);
-  L.push(`            ${DS}.${T}DataTable dataTable = new ${DS}.${T}DataTable();`);
-  L.push(`            ${DS}.${T}Row row = dataTable.New${T}Row();`);
+  // Yerel değişken adları sütun adlarıyla (ör. "row") çakışmasın
+  L.push(`            ${DS}.${T}DataTable __tablo = new ${DS}.${T}DataTable();`);
+  L.push(`            ${DS}.${T}Row __satir = __tablo.New${T}Row();`);
   for (const c of insertCols) {
-    if (isValueType(c) && c.nullable !== false && !c.pk) L.push(`            if (${c.name}.HasValue) row.${c.name} = ${c.name}.Value; else row.Set${c.name}Null();`);
-    else if (c.nullable === false || c.pk) L.push(`            row.${c.name} = ${c.name};`);
-    else L.push(`            if (${c.name} != null) row.${c.name} = ${c.name}; else row.Set${c.name}Null();`);
+    if (isValueType(c) && c.nullable !== false && !c.pk) L.push(`            if (${c.name}.HasValue) __satir.${c.name} = ${c.name}.Value; else __satir.Set${c.name}Null();`);
+    else if (c.nullable === false || c.pk) L.push(`            __satir.${c.name} = ${c.name};`);
+    else L.push(`            if (${c.name} != null) __satir.${c.name} = ${c.name}; else __satir.Set${c.name}Null();`);
   }
-  L.push('            dataTable.Rows.Add(row);');
-  L.push('            return this.Update(dataTable);');
+  L.push('            __tablo.Rows.Add(__satir);');
+  L.push('            return this.Update(__tablo);');
   L.push('        }');
   L.push('    }');
   return L.join('\n');

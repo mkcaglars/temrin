@@ -92,5 +92,15 @@ namespace Temrin.Motor
             }
         }
         public void ProgramEnded(string reason) => Bitis = reason;
+
+        /// <summary>
+        /// Değerlendirme öncesindeki arayüz (tarayıcıda laboratuvarın MySQL köprüsü). Öğrencinin programı
+        /// MySqlConnection ile bağlanırsa sorgular oraya gider; yoksa MySQL'in "sunucuya bağlanılamadı" hatası döner.
+        /// </summary>
+        internal static IUiBackend Dis;
+
+        public string Sql(string op, string json) => Dis != null
+            ? Dis.Sql(op, json)
+            : "{\"error\":{\"code\":1042,\"message\":\"Unable to connect to any of the specified MySQL hosts.\"}}";
     }
 }

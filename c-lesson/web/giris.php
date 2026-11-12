@@ -14,8 +14,14 @@ if ($token === '') {
     html_page('Giriş bağlantısı eksik', '<p>Bu sayfaya okul portalındaki bağlantı ile gelinmelidir.</p>' . $back, 400);
 }
 
+$secret = (string)($config['jwt_secret'] ?? '');
+if (strlen($secret) < 32 || str_contains($secret, 'BURAYA')) {
+    // Örnek ayardaki anahtar herkesçe bilinir: bununla giriş kabul edilmez.
+    html_page('Sunucu ayarı eksik', '<p>Giriş anahtarı (jwt_secret) ayarlanmamış ya da çok kısa. Yönetici api/config.php dosyasına en az 32 karakterlik rastgele bir anahtar yazmalıdır.</p>' . $back, 500);
+}
+
 try {
-    $p = jwt_verify($token, (string)$config['jwt_secret'], (int)($config['token_max_age'] ?? 300));
+    $p = jwt_verify($token, $secret, (int)($config['token_max_age'] ?? 300));
 } catch (RuntimeException $e) {
     html_page('Giriş yapılamadı', '<p>' . htmlspecialchars($e->getMessage()) . '</p><p>Lütfen okul portalından tekrar giriş yapın.</p>' . $back, 403);
 }
@@ -44,9 +50,16 @@ if ($id) {
     $pdo->prepare('UPDATE users SET name = ?, role = ?, sinif = ?, last_login = ? WHERE id = ?')
         ->execute([$name, $role, $sinif, $now, $id]);
 } else {
-    $pdo->prepare('INSERT INTO users (uid, name, role, sinif, created_at, last_login) VALUES (?, ?, ?, ?, ?, ?)')
-        ->execute([$uid, $name, $role, $sinif, $now, $now]);
-    $id = $pdo->lastInsertId();
+    try {
+        $pdo->prepare('INSERT INTO users (uid, name, role, sinif, created_at, last_login) VALUES (?, ?, ?, ?, ?, ?)')
+            ->execute([$uid, $name, $role, $sinif, $now, $now]);
+        $id = $pdo->lastInsertId();
+    } catch (PDOException $e) {
+        // Aynı anda iki giriş (ör. çift tıklama): kullanıcıyı diğer istek oluşturdu.
+        $st->execute([$uid]);
+        $id = $st->fetchColumn();
+        if (!$id) throw $e;
+    }
 }
 
 start_session();

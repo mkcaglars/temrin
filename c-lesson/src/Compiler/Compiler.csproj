@@ -13,12 +13,14 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <ProjectReference Include="..\MiniWinForms\MiniWinForms.csproj" />
+    <ProjectReference Include="..\MySqlData\MySqlData.csproj" />
+    <ProjectReference Include="..\EntityFramework\EntityFramework.csproj" />
   </ItemGroup>
 
   <!-- Öğrenci kodunun derlenebileceği referans derlemeleri. Liste bilinçli olarak kısıtlıdır
        (ağ, yansıma, süreç vb. API'ler dahil edilmez). -->
   <PropertyGroup>
-    <StudentReferences>;System.Runtime;System.Collections;System.Collections.NonGeneric;System.Collections.Specialized;System.Console;System.Linq;System.Text.RegularExpressions;System.Runtime.Extensions;System.ComponentModel;System.ComponentModel.Primitives;System.ComponentModel.TypeConverter;System.Drawing.Primitives;System.ObjectModel;System.Threading;System.Threading.Tasks;System.Threading.Thread;System.Runtime.Numerics;System.Memory;System.Text.Encoding.Extensions;System.Globalization;System.IO;System.Diagnostics.Debug;System.Data.Common;System.Xml.ReaderWriter;System.Collections.Immutable;MiniWinForms;</StudentReferences>
+    <StudentReferences>;System.Runtime;System.Collections;System.Collections.NonGeneric;System.Collections.Specialized;System.Console;System.Linq;System.Text.RegularExpressions;System.Runtime.Extensions;System.ComponentModel;System.ComponentModel.Primitives;System.ComponentModel.TypeConverter;System.Drawing.Primitives;System.ObjectModel;System.Threading;System.Threading.Tasks;System.Threading.Thread;System.Runtime.Numerics;System.Memory;System.Text.Encoding.Extensions;System.Globalization;System.IO;System.Diagnostics.Debug;System.Data.Common;System.Xml.ReaderWriter;System.Collections.Immutable;MiniWinForms;MySql.Data;EntityFramework;System.Data;</StudentReferences>
   </PropertyGroup>
 
   <Target Name="EmbedStudentReferences" AfterTargets="ResolveAssemblyReferences">

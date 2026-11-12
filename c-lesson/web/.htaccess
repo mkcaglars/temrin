@@ -24,7 +24,10 @@ AddType application/gzip .gz
   Header always set Referrer-Policy "same-origin"
 </IfModule>
 
-# Gizli dosyalar
+# Gizli dosyalar ve veritabanı dosyaları
 <FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+<FilesMatch "\.(sqlite|sqlite3|db|bak|log)$">
   Require all denied
 </FilesMatch>

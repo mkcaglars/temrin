@@ -147,6 +147,63 @@ namespace Deneme
             Assert.Contains("OpenFileDialog", ex.Message);
         }
 
+        static List<DiagnosticInfo> Errors(string fields, string methods)
+        {
+            Ui.Backend = new NullBackend();
+            var code = "using System;\nusing System.Windows.Forms;\nnamespace Deneme\n{\n    public partial class Form1 : Form\n    {\n" + fields + "\n" + methods + "\n    }\n}";
+            var p = new ProjectInput { Name = "Deneme", Namespace = "Deneme" };
+            p.Files.Add(new ProjectFile { Name = "Program.cs", Content = Program });
+            p.Files.Add(new ProjectFile { Name = "Form1.cs", Content = code });
+            return new ProjectCompiler().Build(p).Diagnostics.Where(d => d.Severity == "error").ToList();
+        }
+
+        [Fact]
+        public void CreateDelegateIsBlocked()
+        {
+            var errs = Errors("", @"void F() { var g = (Func<string, Type>)Delegate.CreateDelegate(typeof(Func<string, Type>), typeof(Type), ""GetType""); }");
+            Assert.Contains(errs, e => e.Code == "DERS001" && e.Message.Contains("CreateDelegate"));
+            errs = Errors("", @"void F() { Action a = F; var x = Action.CreateDelegate(typeof(Action), this, ""F""); }");
+            Assert.Contains(errs, e => e.Code == "DERS001");
+        }
+
+        [Fact]
+        public void GotoLoopIsStopped()
+        {
+            var (form, b) = Run("Button btn = new Button();", @"btn.Name = ""btn""; Controls.Add(btn); btn.Click += Dongu;",
+                @"void Dongu(object s, EventArgs e) { int i = 0; tekrar: i = 1; if (i >= 0) goto tekrar; }");
+            Guard.LimitMs = 300;
+            try { Ui.Dispatch(Find<Button>(form, "btn").Id(), "click", ""); }
+            finally { Guard.LimitMs = 5000; }
+            Assert.Contains(b.Log, l => l.StartsWith("END:") && l.Contains("sonsuz döngü"));
+        }
+
+        [Fact]
+        public void FieldInitializerAndLambdaRecursionAreStopped()
+        {
+            var (form, b) = Run(@"Button btn = new Button(); Button btn2 = new Button();
+                class A { B b = new B(); } class B { A a = new A(); }",
+                @"btn.Name = ""btn""; btn2.Name = ""btn2""; Controls.Add(btn); Controls.Add(btn2);
+                  btn.Click += (s, e) => { var a = new A(); };
+                  btn2.Click += (s, e) => { Func<int, int> f = null; f = n => { return f(n + 1); }; f(0); };");
+            Ui.Dispatch(Find<Button>(form, "btn").Id(), "click", "");
+            int count = b.Log.Count(l => l.StartsWith("ERR") && l.Contains("özyineleme"));
+            Assert.Equal(1, count);
+            Ui.Dispatch(Find<Button>(form, "btn2").Id(), "click", "");
+            Assert.Equal(2, b.Log.Count(l => l.StartsWith("ERR") && l.Contains("özyineleme")));
+        }
+
+        [Fact]
+        public void AsyncTaskWithGlobalPrefixKeepsGuards()
+        {
+            var (form, b) = Run("Button btn = new Button();", @"btn.Name = ""btn""; Controls.Add(btn); btn.Click += Dongu;",
+                @"async global::System.Threading.Tasks.Task Bekle() => await System.Threading.Tasks.Task.Delay(1);
+                  void Dongu(object s, EventArgs e) { int i = 0; while (i >= 0) { i = 1; } }");
+            Guard.LimitMs = 300;
+            try { Ui.Dispatch(Find<Button>(form, "btn").Id(), "click", ""); }
+            finally { Guard.LimitMs = 5000; }
+            Assert.Contains(b.Log, l => l.StartsWith("END:") && l.Contains("sonsuz döngü"));
+        }
+
         [Fact]
         public void ColumnHeaderFollowsName()
         {

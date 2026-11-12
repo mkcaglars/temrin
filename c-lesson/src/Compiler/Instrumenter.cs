@@ -161,6 +161,36 @@ namespace CLesson.Compiler
             return Block(GuardStatement(LineOf(original)), visited.WithLeadingTrivia(Space)).WithLeadingTrivia(Space);
         }
 
+        /// <summary>Etiketli deyim (goto döngüsü): koruma etiketin içine konur, "goto etiket;" her seferinde denetlenir.</summary>
+        public override SyntaxNode VisitLabeledStatement(LabeledStatementSyntax node)
+        {
+            var v = (LabeledStatementSyntax)base.VisitLabeledStatement(node);
+            if (!guards || v.Statement is LocalDeclarationStatementSyntax or LocalFunctionStatementSyntax) return v;
+            return v.WithStatement(Block(GuardStatement(LineOf(node)), v.Statement.WithLeadingTrivia(Space)).WithLeadingTrivia(Space));
+        }
+
+        /// <summary>
+        /// Alan başlatıcıları kurucudan önce çalışır: "Form2 f = new Form2();" iki form birbirini oluşturursa
+        /// sonsuz özyineleme olur. Değer Guard.Init ile sarılır (derinlik sayılır).
+        /// </summary>
+        public override SyntaxNode VisitFieldDeclaration(FieldDeclarationSyntax node)
+        {
+            var v = (FieldDeclarationSyntax)base.VisitFieldDeclaration(node);
+            if (!guards || v.Modifiers.Any(SyntaxKind.ConstKeyword) || v.Modifiers.Any(SyntaxKind.FixedKeyword)) return v;
+            var type = v.Declaration.Type;
+            if (type.IsVar || type.ToString().Contains("Span")) return v;
+            var vars = v.Declaration.Variables.Select(d =>
+                d.Initializer == null || !MayRecurse(d.Initializer.Value) ? d
+                    : d.WithInitializer(d.Initializer.WithValue(WrapInit(type, d.Initializer.Value))));
+            return v.WithDeclaration(v.Declaration.WithVariables(SeparatedList(vars)));
+        }
+
+        static bool MayRecurse(ExpressionSyntax e) =>
+            e is not InitializerExpressionSyntax && e.DescendantNodesAndSelf().Any(n => n is BaseObjectCreationExpressionSyntax or InvocationExpressionSyntax);
+
+        ExpressionSyntax WrapInit(TypeSyntax type, ExpressionSyntax value) =>
+            ParseExpression(GuardType + ".Init<" + type.WithoutTrivia() + ">(() => " + value.WithoutTrivia().ToFullString() + ")").WithTriviaFrom(value);
+
         public override SyntaxNode VisitWhileStatement(WhileStatementSyntax node)
         {
             var v = (WhileStatementSyntax)base.VisitWhileStatement(node);
@@ -220,21 +250,30 @@ namespace CLesson.Compiler
         {
             bool make = NeedsAsync(node, node.Modifiers);
             var v = (ParenthesizedLambdaExpressionSyntax)base.VisitParenthesizedLambdaExpression(node);
-            return make ? v.WithModifiers(v.Modifiers.Add(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space))) : v;
+            if (make) v = v.WithModifiers(v.Modifiers.Add(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space)));
+            // Gövdeli lambdalarda da özyineleme koruması (f = n => { ... f(n + 1); })
+            if (guards && v.Block != null) v = v.WithBlock(WrapDepth(v.Block));
+            return v;
         }
 
         public override SyntaxNode VisitSimpleLambdaExpression(SimpleLambdaExpressionSyntax node)
         {
             bool make = NeedsAsync(node, node.Modifiers);
             var v = (SimpleLambdaExpressionSyntax)base.VisitSimpleLambdaExpression(node);
-            return make ? v.WithModifiers(v.Modifiers.Add(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space))) : v;
+            if (make) v = v.WithModifiers(v.Modifiers.Add(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space)));
+            // Gövdeli lambdalarda da özyineleme koruması (f = n => { ... f(n + 1); })
+            if (guards && v.Block != null) v = v.WithBlock(WrapDepth(v.Block));
+            return v;
         }
 
         public override SyntaxNode VisitAnonymousMethodExpression(AnonymousMethodExpressionSyntax node)
         {
             bool make = NeedsAsync(node, node.Modifiers);
             var v = (AnonymousMethodExpressionSyntax)base.VisitAnonymousMethodExpression(node);
-            return make ? v.WithModifiers(v.Modifiers.Add(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space))) : v;
+            if (make) v = v.WithModifiers(v.Modifiers.Add(Token(SyntaxKind.AsyncKeyword).WithTrailingTrivia(Space)));
+            // Gövdeli lambdalarda da özyineleme koruması (f = n => { ... f(n + 1); })
+            if (guards && v.Block != null) v = v.WithBlock(WrapDepth(v.Block));
+            return v;
         }
 
         static SyntaxTokenList AddAsync(SyntaxTokenList modifiers, ref TypeSyntax returnType)
@@ -275,8 +314,15 @@ namespace CLesson.Compiler
         {
             if (returnType is PredefinedTypeSyntax p && p.Keyword.IsKind(SyntaxKind.VoidKeyword)) return true;
             if (!modifiers.Any(SyntaxKind.AsyncKeyword)) return false;
-            string t = returnType.ToString();
-            return t is "Task" or "ValueTask" or "System.Threading.Tasks.Task" or "System.Threading.Tasks.ValueTask";
+            // async Task / ValueTask (global::, ad alanı veya takma adla yazılmış olabilir); Task<T> değil
+            var last = returnType switch
+            {
+                QualifiedNameSyntax q => q.Right,
+                AliasQualifiedNameSyntax a => a.Name,
+                SimpleNameSyntax s => s,
+                _ => null,
+            };
+            return last is IdentifierNameSyntax id && id.Identifier.ValueText is "Task" or "ValueTask";
         }
 
         public override SyntaxNode VisitMethodDeclaration(MethodDeclarationSyntax node)
@@ -338,6 +384,8 @@ namespace CLesson.Compiler
         public override SyntaxNode VisitPropertyDeclaration(PropertyDeclarationSyntax node)
         {
             var v = (PropertyDeclarationSyntax)base.VisitPropertyDeclaration(node);
+            if (guards && v.Initializer != null && !v.Type.ToString().Contains("Span") && MayRecurse(v.Initializer.Value))
+                v = v.WithInitializer(v.Initializer.WithValue(WrapInit(v.Type, v.Initializer.Value)));
             if (!guards || v.ExpressionBody == null) return v;
             var getter = AccessorDeclaration(SyntaxKind.GetAccessorDeclaration, WrapDepth(BlockFromArrow(v.ExpressionBody, false)));
             return v.WithExpressionBody(null).WithSemicolonToken(default)

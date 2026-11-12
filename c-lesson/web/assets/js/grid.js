@@ -12,7 +12,10 @@ function esc(s) {
 
 function fontCss(css) {
   if (!css) return '';
-  const [family, size, b, i, u, s] = css.split('|');
+  const [rawFamily, rawSize, b, i, u, s] = css.split('|');
+  // Yazı tipi adı öğrenci kodundan gelir: style özniteliğini bozacak karakterler atılır.
+  const family = String(rawFamily || '').replace(/["'<>;\\&{}()]/g, '');
+  const size = Number(rawSize) || 9;
   const deco = [];
   if (u === '1') deco.push('underline');
   if (s === '1') deco.push('line-through');

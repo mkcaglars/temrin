@@ -1,6 +1,7 @@
 // Geliştirme ortamı: kod editörü, form tasarımcısı, çözüm gezgini, özellikler, hata listesi, çalıştırma.
 import { api, formatDate } from './api.js';
-import { h, modal, toast, confirmBox, promptBox, download } from './ui.js';
+import { themeButton } from './theme.js';
+import { h, modal, toast, confirmBox, promptBox, download, asciiFileName } from './ui.js';
 import { CodeEditor } from './editor.js';
 import { FormDesigner, FORM } from './designer.js';
 import { PropertyGrid } from './props.js';
@@ -12,6 +13,10 @@ import { Desktop } from './runner.js';
 import { distributeDialog } from './teacher.js';
 import { DataEditor } from './dataeditor.js';
 import { generateDataSet, designerFileName, databaseXml, databaseSql, dataFileName, parseDatabaseXml } from './datasetgen.js';
+import { referenceManager, nugetManager, DEFAULT_REFS } from './packages.js';
+import { ensureMysql } from './mysqlbridge.js';
+import { addNewItem, renderEdmx, generateModel, efAppConfig } from './efwizard.js';
+import { manageExtensions, addSetupProject, renderSetup } from './setupproject.js';
 
 const SAVE_DELAY = 1500;
 const CHECK_DELAY = 700;
@@ -64,6 +69,7 @@ export class Ide {
     for (const f of this.data.files) this.editor.setFile(f.name, f.content, { readOnly: this.isGenerated(f.name) });
     this.renderSolution();
     this.renderToolbox();
+    if (this.usesMySql()) ensureMysql(this.ctx.user).catch((e) => console.error(e));
 
     const firstForm = Object.keys(this.data.forms)[0];
     if (firstForm) this.openDesign(firstForm);
@@ -80,6 +86,8 @@ export class Ide {
     d.namespace ??= 'WinFormsApp';
     d.files ??= [];
     d.forms ??= {};
+    d.references ??= [];
+    d.packages ??= [];
     for (const [name, form] of Object.entries(d.forms)) {
       form.name ??= name;
       form.props ??= {};
@@ -117,12 +125,16 @@ export class Ide {
     let backup = null;
     try { backup = JSON.parse(localStorage.getItem(this.backupKey()) || 'null'); } catch { /* bozuk */ }
     if (!backup) return;
-    if (backup.version !== this.version || JSON.stringify(backup.data) === JSON.stringify(this.data)) {
+    if (JSON.stringify(backup.data) === JSON.stringify(this.data)) {
       localStorage.removeItem(this.backupKey());
       return;
     }
+    // Sürüm farklıysa da sorulur (yedek silinmez): proje bu arada başka yerde kaydedilmiş olabilir.
+    const newer = backup.version !== this.version;
     const ok = await confirmBox('Kaydedilmemiş değişiklikler bulundu',
-      `Bu bilgisayarda ${new Date(backup.time).toLocaleString('tr-TR')} tarihinde yapılmış ama sunucuya kaydedilememiş değişiklikler var. Geri yüklensin mi?`,
+      `Bu bilgisayarda ${new Date(backup.time).toLocaleString('tr-TR')} tarihinde yapılmış ama sunucuya kaydedilememiş değişiklikler var.` +
+      (newer ? ' Dikkat: proje o tarihten sonra başka bir yerde de kaydedilmiş. Geri yüklerseniz sunucudaki daha yeni sürümün üzerine yazılır.' : '') +
+      ' Geri yüklensin mi?',
       'Geri yükle');
     if (ok) {
       this.data = this.normalizeData(backup.data);
@@ -143,7 +155,7 @@ export class Ide {
     this.btnStop = h('button', { class: 'btn btn-stop hidden', title: 'Durdur (Shift+F5)', onclick: () => this.stop() }, '■ Durdur');
 
     const top = h('header', { class: 'ide-top' },
-      h('a', { class: 'brand', href: '#/', title: 'Projelerim' }, h('span', { class: 'brand-logo' }, 'C#')),
+      h('a', { class: 'brand', href: '#/', title: 'Projelerim' }, h('img', { class: 'brand-logo', src: 'assets/img/icon.svg', alt: '' })),
       h('div', { class: 'ide-project' }, this.titleEl, this.saveState),
       h('span', { class: 'ide-sep' }),
       this.btnRun, this.btnStop,
@@ -151,10 +163,12 @@ export class Ide {
       h('span', { class: 'ide-sep' }),
       this.readonly ? null : h('button', { class: 'btn btn-ghost', onclick: () => this.addFormDialog() }, '+ Form'),
       this.readonly ? null : h('button', { class: 'btn btn-ghost', onclick: () => this.addClassDialog() }, '+ Sınıf'),
+      this.readonly ? null : h('button', { class: 'btn btn-ghost', title: 'Başvuru ekle, NuGet paketleri, App.config', onclick: (e) => this.projectMenu(e.currentTarget) }, 'Proje ▾'),
       h('button', { class: 'btn btn-ghost', title: 'Visual Studio projesi olarak indir', onclick: () => this.exportZip() }, '⬇ ZIP indir'),
       h('div', { class: 'spacer' }),
       this.readonly ? h('button', { class: 'btn', onclick: () => this.copyToMine() }, 'Kopyasını al') : null,
       !this.readonly && u.role === 'ogretmen' ? h('button', { class: 'btn', title: 'Bu projeyi bir sınıftaki öğrencilerin her birine kopyala', onclick: () => this.distribute() }, '\u{1F4E4} Sınıfa gönder') : null,
+      themeButton(),
       h('span', { class: 'user-chip' }, h('span', { class: 'user-name' }, u.name)),
       h('a', { class: 'btn', href: this.readonly && u.role === 'ogretmen' ? `#/ogretmen/ogrenci/${this.project.owner.id}` : '#/' }, this.readonly ? 'Geri' : 'Projelerim'));
 
@@ -259,8 +273,86 @@ export class Ide {
       name: this.name,
       namespace: this.data.namespace,
       files: this.data.files.map((f) => ({ name: f.name, content: f.content })),
-      dataFiles: withData && db ? [{ name: dataFileName(db), content: databaseXml(db) }, ...(withData === 'zip' ? [{ name: `${db.name}.sql`, content: databaseSql(db) }] : [])] : [],
+      dataFiles: [
+        ...(withData && db ? [{ name: dataFileName(db), content: databaseXml(db) }, ...(withData === 'zip' ? [{ name: `${db.name}.sql`, content: databaseSql(db) }] : [])] : []),
+        ...(withData ? this.data.files.filter((f) => /^app\.config$/i.test(f.name)).map((f) => ({ name: 'App.config', content: f.content })) : []),
+      ],
+      references: this.allReferences(),
     });
+  }
+
+  projectMenu(anchor) {
+    document.querySelector('.ide-dropdown')?.remove();
+    const r = anchor.getBoundingClientRect();
+    const item = (text, fn) => h('button', { class: 'ide-dd-item', onclick: () => { menu.remove(); fn(); } }, text);
+    const menu = h('div', { class: 'ide-dropdown', style: { left: r.left + 'px', top: r.bottom + 2 + 'px' } },
+      item('Add New Item...', () => addNewItem(this)),
+      h('div', { class: 'ide-dd-sep' }),
+      item('Add Reference...', () => this.addReferenceDialog()),
+      item('Manage NuGet Packages...', () => nugetManager(this)),
+      h('div', { class: 'ide-dd-sep' }),
+      item('App.config ekle / aç', () => this.addAppConfig()),
+      h('div', { class: 'ide-dd-sep' }),
+      item('Extensions > Manage Extensions...', () => manageExtensions(this)),
+      item('Add > New Project... (Setup Project)', () => addSetupProject(this)),
+      h('div', { class: 'ide-dd-sep' }),
+      item('Laboratuvarı aç (MySQL, Workbench)', () => window.open('lab.html', '_blank')));
+    document.body.appendChild(menu);
+    setTimeout(() => document.addEventListener('mousedown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', off); } }), 0);
+  }
+
+  /** Derlemeye eklenecek isteğe bağlı başvurular (Add Reference + NuGet) */
+  allReferences() {
+    const refs = new Set(this.data.references || []);
+    for (const p of this.data.packages || []) {
+      if (p.id === 'MySql.Data' || p.id === 'MySql.Data.EntityFramework') refs.add('MySql.Data');
+      if (p.id === 'EntityFramework') refs.add('EntityFramework');
+    }
+    return [...refs];
+  }
+
+  usesMySql() {
+    return this.allReferences().includes('MySql.Data');
+  }
+
+  async addReferenceDialog() {
+    const refs = await referenceManager(this);
+    if (!refs) return;
+    this.data.references = refs.filter((r) => !DEFAULT_REFS.includes(r));
+    this.afterRefsChanged();
+  }
+
+  afterRefsChanged() {
+    this.markDirty();
+    this.renderSolution();
+    this.scheduleCheck();
+    if (this.usesMySql()) ensureMysql(this.ctx.user).catch((e) => console.error(e));
+  }
+
+  installPackage(pkg, version) {
+    this.data.packages = (this.data.packages || []).filter((p) => p.id !== pkg.id);
+    this.data.packages.push({ id: pkg.id, version });
+    this.showBottom('output');
+    this.log(`Installing NuGet package ${pkg.id} ${version}.`, 'o-info');
+    this.log(`Successfully installed '${pkg.id} ${version}' to ${this.data.namespace}`, 'o-ok');
+    if (pkg.id === 'EntityFramework' && !this.data.files.some((f) => /^app\.config$/i.test(f.name))) this.addAppConfig(true);
+    this.afterRefsChanged();
+  }
+
+  uninstallPackage(id) {
+    this.data.packages = (this.data.packages || []).filter((p) => p.id !== id);
+    this.log(`Successfully uninstalled '${id}' from ${this.data.namespace}`, 'o-ok');
+    this.afterRefsChanged();
+  }
+
+  addAppConfig(silent = false) {
+    if (this.data.files.some((f) => /^app\.config$/i.test(f.name))) { this.openCode(this.data.files.find((f) => /^app\.config$/i.test(f.name)).name); return; }
+    const f = { name: 'App.config', content: '<?xml version="1.0" encoding="utf-8" ?>\n<configuration>\n    <startup>\n        <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.8" />\n    </startup>\n    <connectionStrings>\n        <add name="baglanti" connectionString="Server=localhost;Database=kutuphane;Uid=root;Pwd=;" />\n    </connectionStrings>\n</configuration>\n' };
+    this.data.files.push(f);
+    this.editor.setFile(f.name, f.content);
+    this.markDirty();
+    if (!silent) this.openCode(f.name);
+    else this.renderSolution();
   }
 
   scheduleCheck() {
@@ -322,7 +414,51 @@ export class Ide {
   }
 
   isGenerated(name) {
-    return /\.Designer\.cs$/i.test(name);
+    return /\.Designer\.cs$/i.test(name) || this.efGenerated().has(name);
+  }
+
+  /** Entity Framework modellerinin ürettiği (salt okunur) dosyalar */
+  efGenerated() {
+    return new Set((this.data?.efModels || []).flatMap((m) => m.generated || []));
+  }
+
+  openSetup() {
+    const s = this.data.setup;
+    if (!s) return;
+    const key = this.tabKey('setup', s.name);
+    if (!this.tabs.find((t) => t.key === key)) this.tabs.push({ key, kind: 'setup', name: s.name, title: `File System (${s.name})` });
+    this.activate(key);
+  }
+
+  openEdmx(name) {
+    const key = this.tabKey('edmx', name);
+    if (!this.tabs.find((t) => t.key === key)) this.tabs.push({ key, kind: 'edmx', name, title: `${name} [Diagram]` });
+    this.activate(key);
+  }
+
+  /** EF modelini (yeniden) üretir: Context + varlık sınıfları + .edmx + App.config */
+  applyEfModel(model) {
+    const { files } = generateModel(this, model);
+    this.data.efModels = (this.data.efModels || []).filter((m) => m.name !== model.name);
+    const old = new Set();
+    for (const m of [model]) for (const n of m.generated || []) old.add(n);
+    this.data.files = this.data.files.filter((f) => !old.has(f.name) && f.name !== `${model.name}.edmx`);
+    for (const n of old) { this.editor.removeFile(n); this.closeTab(this.tabKey('code', n)); }
+    model.generated = files.filter((f) => f.name.endsWith('.cs')).map((f) => f.name);
+    for (const f of files) {
+      this.data.files.push(f);
+      if (f.name.endsWith('.cs')) this.editor.setFile(f.name, f.content, { readOnly: true });
+    }
+    this.data.efModels.push(model);
+    // App.config
+    let cfg = this.data.files.find((f) => /^app\.config$/i.test(f.name));
+    if (!cfg) { cfg = { name: 'App.config', content: '' }; this.data.files.push(cfg); }
+    cfg.content = efAppConfig(cfg.content, model);
+    this.editor.setFile(cfg.name, cfg.content);
+    this.markDirty();
+    this.renderSolution();
+    this.scheduleCheck();
+    this.openEdmx(`${model.name}.edmx`);
   }
 
   formOfFile(name) {
@@ -376,13 +512,19 @@ export class Ide {
     this.docEmpty.classList.toggle('hidden', !!tab);
     this.docEditor.classList.toggle('hidden', tab?.kind !== 'code');
     this.docDesigner.classList.toggle('hidden', tab?.kind !== 'design');
-    this.docData.classList.toggle('hidden', tab?.kind !== 'data');
+    this.docData.classList.toggle('hidden', tab?.kind !== 'data' && tab?.kind !== 'edmx' && tab?.kind !== 'setup');
     this.toolbox.classList.toggle('disabled', tab?.kind !== 'design' || this.readonly);
     if (!tab) {
       this.props.clear();
       return;
     }
-    if (tab.kind === 'data') {
+    if (tab.kind === 'setup') {
+      renderSetup(this, this.docData);
+      this.props.clear('Setup projesi: dosyaları ve kısayolları File System düzenleyicisinde, ürün bilgilerini Properties ile ayarlayın.');
+    } else if (tab.kind === 'edmx') {
+      renderEdmx(this, tab.name, this.docData);
+      this.props.clear('Entity Data Model: tablolara karşılık gelen sınıflar. Değişiklik için "Update Model from Database".');
+    } else if (tab.kind === 'data') {
       this.dataEditor ??= new DataEditor(this);
       this.docData.innerHTML = '';
       this.docData.appendChild(this.dataEditor.el);
@@ -441,7 +583,14 @@ export class Ide {
       s.appendChild(el);
       return el;
     };
-    item('tree-root', '\u{1F4C1}', this.name, { title: `Ad alanı: ${this.data.namespace}` });
+    item('tree-root', '\u{1F4C1}', this.name, {
+      title: `Ad alanı: ${this.data.namespace}`,
+      actions: this.readonly ? [] : [['NuGet', 'Manage NuGet Packages...', () => nugetManager(this)], ['⚙', 'App.config (uygulama yapılandırma dosyası) ekle', () => this.addAppConfig()]],
+    });
+    const extraRefs = this.allReferences();
+    item('tree-child', '\u{1F4DA}', 'References', { title: 'Başvurular — eklemek için + (Add Reference...)', actions: this.readonly ? [] : [['+', 'Add Reference...', () => this.addReferenceDialog()]], click: () => { this.showRefs = !this.showRefs; this.renderSolution(); } });
+    if (this.showRefs) for (const r of [...DEFAULT_REFS, ...extraRefs].sort()) item('tree-child2', '\u{25AB}', r, { title: r });
+    else if (extraRefs.length) for (const r of extraRefs) item('tree-child2', '\u{25AB}', r, { title: 'Eklenen başvuru' });
     const db = this.data.database;
     if (db) {
       item('tree-child', '\u{1F6E2}', `${db.name}.mdf`, { active: activeName === `${db.name}.mdf` && this.active?.view !== 'design', click: () => this.openData('data'), title: 'Veritabanı: kayıtları ve tablo tasarımını görüntüle' });
@@ -463,14 +612,31 @@ export class Ide {
         item('tree-child2', '\u{1F512}', `${form}.Designer.cs`, { active: activeName === `${form}.Designer.cs`, click: () => this.openCode(`${form}.Designer.cs`), title: 'Tasarımcının ürettiği kod (salt okunur)' });
       } else {
         const canDelete = !this.readonly && f.name !== 'Program.cs';
+        const isConfig = /\.config$/i.test(f.name);
+        if (/\.edmx$/i.test(f.name)) {
+          const m = (this.data.efModels || []).find((x) => `${x.name}.edmx` === f.name);
+          item('tree-child', '\u{26C1}', f.name, { active: activeName === f.name, click: () => this.openEdmx(f.name), title: 'ADO.NET Entity Data Model (diyagram)', actions: this.readonly ? [] : [['✕', 'Modeli sil', () => this.deleteEfModel(m)]] });
+          for (const g of m?.generated || []) item('tree-child2', '\u{1F512}', g, { active: activeName === g, click: () => this.openCode(g), title: 'Şablondan üretilen kod (salt okunur; model güncellenince yeniden üretilir)' });
+          continue;
+        }
         if (this.data.database && f.name === designerFileName(this.data.database)) continue;
         item('tree-child', '\u{1F4C4}', f.name, {
           active: activeName === f.name,
           click: () => this.openCode(f.name),
-          actions: canDelete ? [['✎', 'Yeniden adlandır', () => this.renameFile(f.name)], ['✕', 'Dosyayı sil', () => this.deleteFile(f.name)]] : [],
+          actions: canDelete ? [...(isConfig ? [] : [['✎', 'Yeniden adlandır', () => this.renameFile(f.name)]]), ['✕', 'Dosyayı sil', () => this.deleteFile(f.name)]] : [],
         });
       }
     }
+    this.renderSetupNode(item);
+  }
+
+  renderSetupNode(item) {
+    const st = this.data.setup;
+    if (!st) return;
+    item('tree-root', '\u{1F4E6}', st.name, { active: this.active?.kind === 'setup', click: () => this.openSetup(), title: 'Setup projesi (Visual Studio Installer Projects)' });
+    item('tree-child', '\u{1F4C1}', 'Detected Dependencies', { title: 'Programın çalışması için gereken dosyalar (otomatik)' });
+    for (const d of ['.NET Framework', ...(this.allReferences().includes('MySql.Data') ? ['MySql.Data.dll'] : []), ...(this.allReferences().includes('EntityFramework') ? ['EntityFramework.dll'] : [])]) item('tree-child2', '\u{25AB}', d, {});
+    item('tree-child', '\u{2699}', `Primary output from ${this.data.namespace} (Active)`, { title: 'Application Folder içindeki proje çıktısı', click: () => this.openSetup() });
   }
 
   renderToolbox() {
@@ -703,8 +869,9 @@ export class Ide {
     return null;
   }
 
-  async addFormDialog() {
-    const name = await promptBox('Yeni Form', 'Form adı', this.uniqueFileBase('Form'), (v) => this.validateNewName(v));
+  async addFormDialog(preset) {
+    const presetOk = preset && !this.validateNewName(preset);
+    const name = presetOk ? preset : await promptBox('Yeni Form', 'Form adı', preset || this.uniqueFileBase('Form'), (v) => this.validateNewName(v));
     if (!name) return;
     addForm(this.data, name);
     for (const f of this.data.files) {
@@ -716,8 +883,10 @@ export class Ide {
     toast(`${name} eklendi. Açmak için: new ${name}().Show();`, 'success', 5000);
   }
 
-  async addClassDialog() {
-    const name = await promptBox('Yeni Sınıf', 'Sınıf adı', this.uniqueFileBase('Class'), (v) => this.validateNewName(v));
+  async addClassDialog(preset) {
+    const base = preset ? preset.replace(/\.cs$/i, '') : null;
+    const presetOk = base && !this.validateNewName(base);
+    const name = presetOk ? base : await promptBox('Yeni Sınıf', 'Sınıf adı', base || this.uniqueFileBase('Class'), (v) => this.validateNewName(v));
     if (!name) return;
     const f = { name: `${name}.cs`, content: classCs(this.data.namespace, name) };
     this.data.files.push(f);
@@ -739,6 +908,19 @@ export class Ide {
     this.closeTab(this.tabKey('design', form));
     this.renderSolution();
     this.markDirty();
+    this.scheduleCheck();
+  }
+
+  async deleteEfModel(m) {
+    if (!m) return;
+    if (!(await confirmBox('Modeli sil', `${m.name}.edmx ve ürettiği sınıflar silinecek. Emin misiniz?`, 'Sil', true))) return;
+    const names = new Set([...(m.generated || []), `${m.name}.edmx`]);
+    for (const n of names) { this.editor.removeFile(n); this.closeTab(this.tabKey('code', n)); }
+    this.closeTab(this.tabKey('edmx', `${m.name}.edmx`));
+    this.data.files = this.data.files.filter((f) => !names.has(f.name));
+    this.data.efModels = this.data.efModels.filter((x) => x !== m);
+    this.markDirty();
+    this.renderSolution();
     this.scheduleCheck();
   }
 
@@ -818,9 +1000,44 @@ export class Ide {
   }
 
   async exportZip() {
+    const usesNetFx = this.allReferences().length > 0 || (this.data.efModels || []).length > 0 || !!this.data.setup;
+    let target = usesNetFx ? 'net48' : 'net8';
+    const opt = (id, title, desc) => {
+      const r = h('input', { type: 'radio', name: 'ziptarget', checked: target === id });
+      r.onchange = () => { target = id; };
+      return h('label', { class: 'zip-opt' }, r, h('div', {}, h('b', {}, title), h('div', { class: 'muted small' }, desc)));
+    };
+    const r = await modal({
+      title: 'Visual Studio projesi olarak indir',
+      width: 560,
+      body: h('div', { class: 'efw-col' },
+        opt('net48', '.NET Framework 4.8 (kitaptaki gibi)', 'Visual Studio 2019/2022 "Windows Forms App (.NET Framework)" projesi: App.config, References, NuGet paketleri (MySql.Data, EntityFramework), .edmx. Kitaptaki MySQL, Entity Framework ve Setup konuları için önerilir.'),
+        opt('net8', '.NET 8 (yeni)', 'Visual Studio 2022 17.13+ / VS 2026 için SDK biçiminde proje (.slnx). Entity Framework (.edmx) tasarımcısı bu biçimde çalışmaz.')),
+      buttons: [{ text: 'Vazgeç', value: null }, { text: 'İndir', value: 'ok', primary: true }],
+    });
+    if (r !== 'ok') return;
     try {
       const engine = await this.engine();
-      const bytes = engine.ExportZip(this.projectJson('zip'));
+      const pj = JSON.parse(this.projectJson('zip'));
+      pj.exportTarget = target;
+      if (target === 'net48' && this.data.setup) {
+        const su = this.data.setup;
+        pj.setup = { name: su.name, props: su.props || {}, items: (su.items || []).map((it) => ({ id: it.id, folder: it.folder, kind: it.kind, name: it.name, content: it.kind === 'file' ? it.content : undefined, target: it.target, icon: it.icon })) };
+      }
+      // .edmx dosyalarını güncel (tam) biçimde yeniden üret
+      if ((this.data.efModels || []).length) {
+        try {
+          await ensureMysql(this.ctx.user);
+          for (const m of this.data.efModels) {
+            const edmx = generateModel(this, m).files.find((f) => f.name.endsWith('.edmx'));
+            const f = pj.files.find((x) => x.name === edmx.name);
+            if (f) f.content = edmx.content;
+          }
+        } catch (e) {
+          console.warn('edmx yeniden üretilemedi', e);
+        }
+      }
+      const bytes = engine.ExportZip(JSON.stringify(pj));
       download(`${asciiFileName(this.name)}.zip`, bytes, 'application/zip');
     } catch (e) {
       toast('ZIP oluşturulamadı: ' + e.message, 'error');
@@ -846,7 +1063,7 @@ export class Ide {
   }
 
   async save({ force = false } = {}) {
-    if (this.readonly) return true;
+    if (this.readonly || this.disposed) return true;
     clearTimeout(this.saveTimer);
     if (this.saving) {
       this.saveAgain = true;
@@ -954,6 +1171,13 @@ export class Ide {
     if (this.running) await this.stop();
     const r = await this.build();
     if (!r?.success) return;
+    if (this.usesMySql()) {
+      try {
+        await ensureMysql(this.ctx.user);
+      } catch (e) {
+        toast('MySQL simülatörü yüklenemedi: ' + e.message, 'error');
+      }
+    }
     this.lastFiles = r.fileNames || [];
     this.openRunner();
     const engine = await this.engine();
@@ -990,7 +1214,7 @@ export class Ide {
       const desk = h('div', { class: 'run-desktop' });
       this.overlay = h('div', { class: 'run-overlay hidden' },
         h('div', { class: 'run-bar' },
-          h('span', { class: 'brand-logo' }, 'C#'),
+          h('img', { class: 'brand-logo', src: 'assets/img/icon.svg', alt: '' }),
           h('span', { class: 'run-title' }, this.name),
           this.runState,
           h('div', { class: 'spacer' }),
@@ -1135,8 +1359,13 @@ export class Ide {
     document.removeEventListener('keydown', this.keyHandler);
     window.removeEventListener('beforeunload', this.unloadHandler);
     clearTimeout(this.checkTimer);
+    clearTimeout(this.saveTimer);
     if (this.running) await this.stop();
     if (this.dirty) await this.save();
+    // Kapanmış projenin yeniden deneme kaydı, sonradan açılan yeni sürümün üzerine yazmasın.
+    this.disposed = true;
+    clearTimeout(this.saveTimer);
+    this.desktop?.dispose();
     this.overlay?.remove();
     this.editor?.dispose();
     return true;
@@ -1167,13 +1396,6 @@ export function turkishMessage(type, message) {
 }
 
 /** İndirme adı: bazı tarayıcılar Türkçe karakterli adları "download" yapar. */
-function asciiFileName(name) {
-  const map = { ç: 'c', Ç: 'C', ğ: 'g', Ğ: 'G', ı: 'i', İ: 'I', ö: 'o', Ö: 'O', ş: 's', Ş: 'S', ü: 'u', Ü: 'U' };
-  const s = String(name || 'Proje').replace(/[çÇğĞıİöÖşŞüÜ]/g, (c) => map[c])
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^A-Za-z0-9 ._-]+/g, '_').trim();
-  return s || 'Proje';
-}
 
 /** Sık görülen hataları öğrencinin anlayacağı dille açıklar. */
 function explainException(type) {

@@ -17,7 +17,7 @@ namespace CLesson.Compiler
 
         static readonly CultureInfo Turkish = new("tr-TR");
 
-        static readonly CSharpParseOptions parseOptions = new(LanguageVersion.Latest, DocumentationMode.None);
+        static readonly CSharpParseOptions parseOptions = new(LanguageVersion.CSharp12, DocumentationMode.None);
 
         static readonly CSharpCompilationOptions compilationOptions = new(
             OutputKind.WindowsApplication,
@@ -75,9 +75,12 @@ namespace CLesson.Compiler
             fileOrder = files.Select(f => f.Name).ToList();
             var ordered = fileOrder.Select(n => trees[n].tree).Append(trees[HiddenFileName].tree).ToList();
 
-            if (compilation == null)
+            // İsteğe bağlı başvurular (Add Reference / NuGet ile eklenen MySql.Data gibi)
+            string refKey = References.Key(project.References);
+            if (compilation == null || refKey != currentRefs)
             {
-                compilation = CSharpCompilation.Create("OgrenciProjesi", ordered, References.All, compilationOptions);
+                currentRefs = refKey;
+                compilation = CSharpCompilation.Create("OgrenciProjesi", ordered, References.For(project.References), compilationOptions);
             }
             else
             {
@@ -85,6 +88,8 @@ namespace CLesson.Compiler
             }
             return compilation;
         }
+
+        string currentRefs = "";
 
         public IReadOnlyList<string> FileOrder => fileOrder;
 
@@ -167,6 +172,12 @@ namespace CLesson.Compiler
                 {
                     result.Success = true;
                     result.Assembly = pe.ToArray();
+                    if (!guards)
+                        result.Diagnostics.Add(new DiagnosticInfo
+                        {
+                            Severity = "warning", Code = "DERS003", File = "", Line = 0,
+                            Message = "Bu program sonsuz döngü korumasız çalışacak (iç dönüşüm başarısız oldu). Program donarsa sayfayı yenileyin.",
+                        });
                     break;
                 }
                 if (!guards)

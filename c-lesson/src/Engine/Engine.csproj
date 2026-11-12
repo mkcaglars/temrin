@@ -23,5 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Compiler\Compiler.csproj" />
     <ProjectReference Include="..\MiniWinForms\MiniWinForms.csproj" />
+    <ProjectReference Include="..\MySqlData\MySqlData.csproj" />
+    <ProjectReference Include="..\EntityFramework\EntityFramework.csproj" />
   </ItemGroup>
 </Project>

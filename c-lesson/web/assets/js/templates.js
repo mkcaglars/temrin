@@ -14,8 +14,16 @@ export function toNamespace(name) {
 }
 
 export function isIdentifier(s) {
-  return /^[A-Za-z_À-ɏ][A-Za-z0-9_À-ɏ]*$/.test(s || '') && !CS_KEYWORDS.has(s);
+  return /^[\p{L}\p{Nl}_][\p{L}\p{Nl}\p{Nd}\p{Mn}\p{Mc}\p{Pc}]*$/u.test(s || '') && !CS_KEYWORDS.has(s);
 }
+
+/** Form sınıfında zaten bulunan üyeler: kontrol adı olarak kullanılırsa Designer.cs derlenmez. */
+export const FORM_MEMBERS = new Set(('components InitializeComponent Dispose Controls Text Name Size Location ClientSize Font ForeColor BackColor ' +
+  'Visible Enabled Width Height Left Top Right Bottom Bounds Tag Parent Handle Icon Owner Container Site Events Focused Capture Cursor ' +
+  'AcceptButton CancelButton MainMenuStrip ContextMenuStrip KeyPreview StartPosition WindowState Opacity TopMost DialogResult Close Show Hide ' +
+  'ShowDialog Refresh Update Invalidate Focus Select Validate Activate BringToFront SendToBack SuspendLayout ResumeLayout PerformLayout ' +
+  'AutoScaleMode AutoScaleDimensions FormBorderStyle MaximizeBox MinimizeBox ControlBox ShowInTaskbar Load Shown FormClosing FormClosed ' +
+  'Click Resize Paint ToString Equals GetHashCode GetType Form1').split(' '));
 
 export const CS_KEYWORDS = new Set(('abstract as base bool break byte case catch char checked class const continue decimal default delegate do double else enum event explicit extern false finally fixed float for foreach goto if implicit in int interface internal is lock long namespace new null object operator out override params private protected public readonly ref return sbyte sealed short sizeof stackalloc static string struct switch this throw true try typeof uint ulong unchecked unsafe ushort using virtual void volatile while').split(' '));
 

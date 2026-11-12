@@ -19,10 +19,19 @@ function fail(string $message, int $status = 400, array $extra = []): never
     out(['error' => $message] + $extra, $status);
 }
 
-function body(): array
+/** İstek gövdesindeki bir alanı JSON olarak, boş nesneler ({}) korunarak yeniden kodlar. */
+function raw_json_field(string $name): ?string
+{
+    $o = json_decode(file_get_contents('php://input') ?: '');
+    if (!is_object($o) || !property_exists($o, $name)) return null;
+    $json = json_encode($o->$name, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return $json === false ? null : $json;
+}
+
+function body(int $max = 0): array
 {
     $raw = file_get_contents('php://input') ?: '';
-    $max = (int)(app_config()['max_project_bytes'] ?? 3000000) + 10000;
+    if ($max <= 0) $max = (int)(app_config()['max_project_bytes'] ?? 3000000) + 10000;
     if (strlen($raw) > $max) fail('Proje çok büyük (en fazla ' . round($max / 1000000, 1) . ' MB).', 413);
     $data = json_decode($raw, true);
     if (!is_array($data)) fail('Geçersiz istek gövdesi.');
@@ -82,6 +91,27 @@ function project_summary(array $p): array
         'updated_at' => $p['updated_at'],
         'size' => isset($p['size']) ? (int)$p['size'] : null,
         'has_note' => isset($p['note']) ? $p['note'] !== '' : null,
+    ];
+}
+
+/** Laboratuvar veritabanı adı (MySQL kuralları: harf, rakam, _ ve $; en fazla 64) */
+function lab_db_name(string $n): string
+{
+    $n = mb_strtolower(trim($n));
+    if ($n === '' || mb_strlen($n) > 64 || !preg_match('/^[\p{L}\p{N}_$]+$/u', $n)) fail('Geçersiz veritabanı adı.');
+    return $n;
+}
+
+function lab_task_out(array $t): array
+{
+    return [
+        'id' => (int)$t['id'],
+        'title' => $t['title'],
+        'sinif' => $t['sinif'],
+        'active' => (bool)(int)$t['active'],
+        'data' => json_decode($t['data']),
+        'author' => $t['author_name'] ?? null,
+        'updated_at' => $t['updated_at'],
     ];
 }
 
@@ -187,6 +217,9 @@ try {
                 $p = load_project($id, $u, false);
                 $b = body();
                 $name = clean_name($b['name'] ?? ($p['name'] . ' - kopya'));
+                $count = $pdo->prepare('SELECT COUNT(*) FROM projects WHERE user_id = ?');
+                $count->execute([$u['id']]);
+                if ((int)$count->fetchColumn() >= (int)(app_config()['max_projects_per_user'] ?? 200)) fail('Proje sayısı sınırına ulaştınız. Eski projelerden bazılarını silin.');
                 $now = now_str();
                 $pdo->prepare('INSERT INTO projects (user_id, name, data, version, note, created_at, updated_at) VALUES (?, ?, ?, 1, \'\', ?, ?)')
                     ->execute([$u['id'], $name, $p['data'], $now, $now]);
@@ -196,6 +229,7 @@ try {
                 // Öğretmen: projeyi seçilen sınıftaki öğrencilerin her birine kopyalar.
                 require_teacher($u);
                 $p = load_project($id, $u, false);
+                if ((int)$p['user_id'] !== (int)$u['id']) fail('Yalnızca kendi projenizi sınıfa gönderebilirsiniz. Öğrenci projesini önce "Kopyasını al" ile kendi alanınıza alın.', 403);
                 $b = body();
                 $sinif = trim((string)($b['sinif'] ?? ''));
                 if ($sinif === '') fail('Sınıf seçin.');
@@ -242,6 +276,205 @@ try {
                 out(['ok' => true, 'note' => $note]);
             }
             fail('Bilinmeyen işlem.', 404);
+        }
+
+        // ------------------------------------------------------------- laboratuvar
+        case $route === 'lab/state' && $method === 'GET': {
+            $st = $pdo->prepare('SELECT data, version, updated_at FROM lab_state WHERE user_id = ?');
+            $st->execute([$u['id']]);
+            $row = $st->fetch();
+            $dbs = $pdo->prepare('SELECT name, size, updated_at FROM lab_databases WHERE user_id = ? ORDER BY name');
+            $dbs->execute([$u['id']]);
+            out([
+                'state' => $row ? json_decode($row['data']) : null,
+                'version' => $row ? (int)$row['version'] : 0,
+                'databases' => array_map(fn($d) => ['name' => $d['name'], 'size' => (int)$d['size'], 'updated_at' => $d['updated_at']], $dbs->fetchAll()),
+            ]);
+        }
+
+        case $route === 'lab/state' && $method === 'PUT': {
+            $b = body(1000000);
+            if (!is_array($b['state'] ?? null)) fail('Durum verisi eksik.');
+            $json = raw_json_field('state');
+            if ($json === false || strlen($json) > 900000) fail('Laboratuvar durumu çok büyük.', 413);
+            $now = now_str();
+            $up = $pdo->prepare('UPDATE lab_state SET data = ?, version = version + 1, updated_at = ? WHERE user_id = ?');
+            $up->execute([$json, $now, $u['id']]);
+            if ($up->rowCount() === 0) {
+                try {
+                    $pdo->prepare('INSERT INTO lab_state (user_id, data, version, updated_at) VALUES (?, ?, 1, ?)')->execute([$u['id'], $json, $now]);
+                } catch (PDOException $e) {
+                    $up->execute([$json, $now, $u['id']]);
+                }
+            }
+            out(['ok' => true, 'updated_at' => $now]);
+        }
+
+        case count($parts) >= 3 && $parts[0] === 'lab' && $parts[1] === 'databases': {
+            $name = lab_db_name(rawurldecode($parts[2]));
+            $action = $parts[3] ?? '';
+            if ($action === '' && $method === 'GET') {
+                $st = $pdo->prepare('SELECT name, data, updated_at FROM lab_databases WHERE user_id = ? AND name = ?');
+                $st->execute([$u['id'], $name]);
+                $d = $st->fetch();
+                if (!$d) fail('Veritabanı bulunamadı.', 404);
+                out(['name' => $d['name'], 'data' => $d['data'], 'updated_at' => $d['updated_at']]);
+            }
+            if ($action === '' && $method === 'PUT') {
+                $max = (int)(app_config()['max_lab_db_bytes'] ?? 4000000);
+                $b = body($max + 10000);
+                $data = (string)($b['data'] ?? '');
+                if ($data === '' || strlen($data) > $max || !preg_match('/^[A-Za-z0-9+\/=]+$/', $data)) fail('Veritabanı dosyası geçersiz ya da çok büyük.', 413);
+                $now = now_str();
+                $up = $pdo->prepare('UPDATE lab_databases SET data = ?, size = ?, updated_at = ? WHERE user_id = ? AND name = ?');
+                $up->execute([$data, strlen($data), $now, $u['id'], $name]);
+                if ($up->rowCount() === 0) {
+                    $count = $pdo->prepare('SELECT COUNT(*) FROM lab_databases WHERE user_id = ?');
+                    $count->execute([$u['id']]);
+                    if ((int)$count->fetchColumn() >= (int)(app_config()['max_lab_dbs_per_user'] ?? 40)) fail('Veritabanı sayısı sınırına ulaştınız. Kullanmadıklarınızı silin (DROP DATABASE).');
+                    try {
+                        $pdo->prepare('INSERT INTO lab_databases (user_id, name, data, size, updated_at) VALUES (?, ?, ?, ?, ?)')->execute([$u['id'], $name, $data, strlen($data), $now]);
+                    } catch (PDOException $e) {
+                        $up->execute([$data, strlen($data), $now, $u['id'], $name]);
+                    }
+                }
+                out(['ok' => true, 'updated_at' => $now]);
+            }
+            if ($action === '' && $method === 'DELETE') {
+                $pdo->prepare('DELETE FROM lab_databases WHERE user_id = ? AND name = ?')->execute([$u['id'], $name]);
+                out(['ok' => true]);
+            }
+            if ($action === 'distribute' && $method === 'POST') {
+                // Öğretmen: kendi veritabanını sınıftaki öğrencilerin sunucusuna kopyalar.
+                require_teacher($u);
+                $st = $pdo->prepare('SELECT data FROM lab_databases WHERE user_id = ? AND name = ?');
+                $st->execute([$u['id'], $name]);
+                $data = $st->fetchColumn();
+                if ($data === false) fail('Veritabanı bulunamadı. Önce laboratuvarda oluşturun.', 404);
+                $b = body();
+                $sinif = trim((string)($b['sinif'] ?? ''));
+                if ($sinif === '') fail('Sınıf seçin.');
+                $target = lab_db_name((string)($b['as'] ?? $name));
+                $overwrite = !empty($b['overwrite']);
+                $st = $pdo->prepare("SELECT id, name FROM users WHERE sinif = ? AND role = 'ogrenci' ORDER BY name");
+                $st->execute([$sinif]);
+                $students = $st->fetchAll();
+                if (!$students) fail('Bu sınıfta (henüz giriş yapmış) öğrenci yok.');
+                $exists = $pdo->prepare('SELECT COUNT(*) FROM lab_databases WHERE user_id = ? AND name = ?');
+                $del = $pdo->prepare('DELETE FROM lab_databases WHERE user_id = ? AND name = ?');
+                $ins = $pdo->prepare('INSERT INTO lab_databases (user_id, name, data, size, updated_at) VALUES (?, ?, ?, ?, ?)');
+                $now = now_str();
+                $copied = [];
+                $skipped = [];
+                $pdo->beginTransaction();
+                try {
+                    foreach ($students as $s) {
+                        $sid = (int)$s['id'];
+                        $exists->execute([$sid, $target]);
+                        if ((int)$exists->fetchColumn() > 0) {
+                            if (!$overwrite) { $skipped[] = ['name' => $s['name'], 'reason' => 'aynı adlı veritabanı var']; continue; }
+                            $del->execute([$sid, $target]);
+                        }
+                        $ins->execute([$sid, $target, $data, strlen($data), $now]);
+                        $copied[] = $s['name'];
+                    }
+                    $pdo->commit();
+                } catch (Throwable $e) {
+                    $pdo->rollBack();
+                    throw $e;
+                }
+                out(['copied' => $copied, 'skipped' => $skipped]);
+            }
+            fail('Bilinmeyen işlem.', 404);
+        }
+
+        case $route === 'lab/tasks' && $method === 'GET': {
+            if ($u['role'] === 'ogretmen') {
+                $st = $pdo->prepare('SELECT t.*, u.name AS author_name FROM lab_tasks t JOIN users u ON u.id = t.author_id WHERE t.author_id = ? ORDER BY t.updated_at DESC');
+                $st->execute([$u['id']]);
+            } else {
+                $st = $pdo->prepare("SELECT t.*, u.name AS author_name FROM lab_tasks t JOIN users u ON u.id = t.author_id WHERE t.active = 1 AND (t.sinif = '' OR t.sinif = ?) ORDER BY t.created_at");
+                $st->execute([$u['sinif']]);
+            }
+            $tasks = array_map('lab_task_out', $st->fetchAll());
+            $pr = $pdo->prepare('SELECT task_key, data, done, updated_at FROM lab_progress WHERE user_id = ?');
+            $pr->execute([$u['id']]);
+            $progress = [];
+            foreach ($pr->fetchAll() as $r) $progress[$r['task_key']] = ['data' => json_decode($r['data']), 'done' => (bool)(int)$r['done'], 'updated_at' => $r['updated_at']];
+            out(['tasks' => $tasks, 'progress' => $progress]);
+        }
+
+        case $route === 'lab/tasks' && $method === 'POST':
+        case count($parts) === 3 && $parts[0] === 'lab' && $parts[1] === 'tasks' && ctype_digit($parts[2]): {
+            require_teacher($u);
+            $id = isset($parts[2]) ? (int)$parts[2] : 0;
+            if ($id) {
+                $st = $pdo->prepare('SELECT * FROM lab_tasks WHERE id = ?');
+                $st->execute([$id]);
+                $t = $st->fetch();
+                if (!$t || (int)$t['author_id'] !== (int)$u['id']) fail('Görev bulunamadı.', 404);
+                if ($method === 'DELETE') {
+                    $pdo->prepare('DELETE FROM lab_tasks WHERE id = ?')->execute([$id]);
+                    $pdo->prepare('DELETE FROM lab_progress WHERE task_key = ?')->execute(['t' . $id]);
+                    out(['ok' => true]);
+                }
+                if ($method !== 'PUT') fail('Bilinmeyen işlem.', 404);
+            }
+            $b = body(1000000);
+            $title = mb_substr(trim((string)($b['title'] ?? '')), 0, 150);
+            if ($title === '') fail('Görev başlığı boş olamaz.');
+            if (!is_array($b['data'] ?? null)) fail('Görev adımları eksik.');
+            $json = raw_json_field('data');
+            if (strlen($json) > 500000) fail('Görev çok büyük.', 413);
+            $sinif = mb_substr(trim((string)($b['sinif'] ?? '')), 0, 50);
+            $active = !array_key_exists('active', $b) || !empty($b['active']) ? 1 : 0;
+            $now = now_str();
+            if ($id) {
+                $pdo->prepare('UPDATE lab_tasks SET title = ?, sinif = ?, data = ?, active = ?, updated_at = ? WHERE id = ?')->execute([$title, $sinif, $json, $active, $now, $id]);
+            } else {
+                $pdo->prepare('INSERT INTO lab_tasks (author_id, sinif, title, data, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')->execute([$u['id'], $sinif, $title, $json, $active, $now, $now]);
+                $id = (int)$pdo->lastInsertId();
+            }
+            out(['id' => $id, 'updated_at' => $now], isset($parts[2]) ? 200 : 201);
+        }
+
+        case count($parts) === 3 && $parts[0] === 'lab' && $parts[1] === 'progress' && $method === 'PUT': {
+            $key = $parts[2];
+            if (!preg_match('/^[a-z0-9_.:-]{1,64}$/i', $key)) fail('Geçersiz görev.');
+            $b = body(200000);
+            $json = raw_json_field('data') ?? '{}';
+            $done = !empty($b['done']) ? 1 : 0;
+            $now = now_str();
+            $up = $pdo->prepare('UPDATE lab_progress SET data = ?, done = ?, updated_at = ? WHERE user_id = ? AND task_key = ?');
+            $up->execute([$json, $done, $now, $u['id'], $key]);
+            if ($up->rowCount() === 0) {
+                try {
+                    $pdo->prepare('INSERT INTO lab_progress (user_id, task_key, data, done, updated_at) VALUES (?, ?, ?, ?, ?)')->execute([$u['id'], $key, $json, $done, $now]);
+                } catch (PDOException $e) {
+                    $up->execute([$json, $done, $now, $u['id'], $key]);
+                }
+            }
+            out(['ok' => true]);
+        }
+
+        case $route === 'teacher/lab-progress' && $method === 'GET': {
+            require_teacher($u);
+            $sinif = (string)($_GET['sinif'] ?? '');
+            if ($sinif === '') fail('Sınıf seçin.');
+            $st = $pdo->prepare("SELECT id, uid, name, role, sinif FROM users WHERE sinif = ? AND role = 'ogrenci' ORDER BY name");
+            $st->execute([$sinif]);
+            $students = $st->fetchAll();
+            $progress = [];
+            if ($students) {
+                $ids = array_map(fn($s) => (int)$s['id'], $students);
+                $in = implode(',', array_fill(0, count($ids), '?'));
+                $pr = $pdo->prepare("SELECT user_id, task_key, data, done, updated_at FROM lab_progress WHERE user_id IN ($in)");
+                $pr->execute($ids);
+                foreach ($pr->fetchAll() as $r) {
+                    $progress[(int)$r['user_id']][$r['task_key']] = ['data' => json_decode($r['data']), 'done' => (bool)(int)$r['done'], 'updated_at' => $r['updated_at']];
+                }
+            }
+            out(['students' => array_map(fn($s) => user_public($s) + ['progress' => $progress[(int)$s['id']] ?? new stdClass()], $students)]);
         }
 
         // ------------------------------------------------------------- öğretmen

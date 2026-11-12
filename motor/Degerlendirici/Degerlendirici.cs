@@ -45,6 +45,7 @@ namespace Temrin.Motor
             }
 
             var oncekiArayuz = Ui.Backend;
+            KayitArayuzu.Dis = oncekiArayuz;
             int oncekiSinir = Guard.LimitMs;
             var oncekiKultur = (CultureInfo.CurrentCulture, CultureInfo.CurrentUICulture);
             try
@@ -71,6 +72,7 @@ namespace Temrin.Motor
                 Ui.Backend = new KayitArayuzu();
                 Ui.Reset();
                 Ui.Backend = oncekiArayuz;
+                KayitArayuzu.Dis = null;
                 Guard.LimitMs = oncekiSinir;
                 (CultureInfo.CurrentCulture, CultureInfo.CurrentUICulture) = oncekiKultur;
             }

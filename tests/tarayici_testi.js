@@ -124,8 +124,9 @@ async function motorHazir(sayfa) {
     const p = await ctx.newPage();
     p.on('pageerror', (e) => hatalar.push(`${ad}: ${e.message}`));
     // Uygulamanın kendisinin karşıladığı 4xx yanıtları (ör. hatalı CSV → 400) hata sayılmaz.
-    p.on('console', (m) => { if (m.type() === 'error' && !/favicon|status of 4\d\d/.test(m.text())) hatalar.push(`${ad} konsol: ${m.text()}`); });
+    p.on('console', (m) => { if (process.env.HATA_DOK) console.log(`[${ad} ${m.type()}] ${m.text()}`); if (m.type() === 'error' && !/favicon|status of 4\d\d/.test(m.text())) hatalar.push(`${ad} konsol: ${m.text()}`); });
     p.on('dialog', (d) => d.accept());
+    if (process.env.HATA_DOK) p.on('response', (r) => { if (r.status() >= 400) console.log('[404?]', r.status(), r.url()); });
     return p;
   };
   try {
@@ -273,6 +274,7 @@ async function motorHazir(sayfa) {
   } catch (e) {
     hatali++;
     console.log('  ✗ test yarıda kaldı: ' + e.message);
+    if (process.env.EKRAN) for (const [i, p] of tarayici.contexts().flatMap((c) => c.pages()).entries()) await p.screenshot({ path: path.join(process.env.EKRAN, `hata-${i}.png`) }).catch(() => {});
     if (hatalar.length) console.log('    tarayıcı hataları: ' + hatalar.join(' | '));
   } finally {
     await tarayici.close();

@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace CLesson.Compiler
 {
-    public static class CodeTools
+    public static partial class CodeTools
     {
         /// <summary>
         /// Form kod dosyasına (Form1.cs) olay metodu ekler. Metot zaten varsa dokunmaz.
@@ -96,6 +96,7 @@ namespace CLesson.Compiler
         /// <summary>Projeyi Visual Studio'da açılabilecek bir .zip dosyasına dönüştürür.</summary>
         public static byte[] ExportZip(ProjectInput project)
         {
+            if (string.Equals(project.ExportTarget, "net48", StringComparison.OrdinalIgnoreCase)) return ExportZipNet48(project);
             string safeName = SafeFileName(string.IsNullOrWhiteSpace(project.Name) ? "Proje" : project.Name);
             var sources = project.SourceFiles.ToList();
             var formFiles = sources.Where(f => sources.Any(d => d.Name == Path.GetFileNameWithoutExtension(f.Name) + ".Designer.cs")).ToList();
@@ -130,7 +131,21 @@ namespace CLesson.Compiler
                 }
                 csproj.AppendLine("  </ItemGroup>");
             }
-            var copied = (project.DataFiles ?? new()).Where(f => !f.Name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase)).ToList();
+            // NuGet paketleri (Add Reference / Manage NuGet Packages ile eklenenler)
+            var packages = new List<(string id, string version)>();
+            if ((project.References ?? new()).Any(r => r.Equals("MySql.Data", StringComparison.OrdinalIgnoreCase))) packages.Add(("MySql.Data", "8.0.33"));
+            bool ef = (project.References ?? new()).Any(r => r.Equals("EntityFramework", StringComparison.OrdinalIgnoreCase));
+            if (ef) { packages.Add(("EntityFramework", "6.5.1")); packages.Add(("MySql.Data.EntityFramework", "8.0.33")); }
+            if (project.Files.Any(f => f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) && (f.Content ?? "").Contains("ConfigurationManager")))
+                packages.Add(("System.Configuration.ConfigurationManager", "8.0.0"));
+            if (packages.Count > 0)
+            {
+                csproj.AppendLine();
+                csproj.AppendLine("  <ItemGroup>");
+                foreach (var (id, version) in packages) csproj.AppendLine("    <PackageReference Include=\"" + id + "\" Version=\"" + version + "\" />");
+                csproj.AppendLine("  </ItemGroup>");
+            }
+            var copied = (project.DataFiles ?? new()).Where(f => !f.Name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase) && !f.Name.Equals("App.config", StringComparison.OrdinalIgnoreCase)).ToList();
             if (copied.Count > 0)
             {
                 csproj.AppendLine();
@@ -194,7 +209,8 @@ namespace CLesson.Compiler
                     if (f.Name == ProjectCompiler.HiddenFileName) continue;
                     Add(f.Name, f.Content);
                 }
-                foreach (var f in project.DataFiles ?? new()) Add(f.Name, f.Content);
+                foreach (var f in project.DataFiles ?? new())
+                    if (!project.Files.Any(x => x.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase))) Add(f.Name, f.Content);
                 string db = (project.DataFiles ?? new()).Any() ?
                     "\r\nVeritabanı: Bu projede okul.mdf yerine kayıtlar " + string.Join(", ", copied.Select(f => f.Name)) + " dosyasında tutulur;\r\n" +
                     "veri kümesi (DataSet) sınıfları ...DataSet.Designer.cs dosyasındadır ve bu dosyayı okuyup yazar.\r\n" +
@@ -203,7 +219,13 @@ namespace CLesson.Compiler
                     "Bu proje C# WinForms Ders Ortamından indirildi.\r\n\r\n" +
                     "Açmak için: " + project.Namespace + ".slnx dosyasına çift tıklayın (Visual Studio 2022 17.13+ veya VS 2026).\r\n" +
                     "Daha eski Visual Studio 2022 sürümlerinde " + project.Namespace + ".sln dosyasını açın.\r\n" +
-                    "Gerekli: .NET 8 SDK ve Visual Studio'da \".NET masaüstü geliştirme\" iş yükü.\r\n" + db);
+                    "Gerekli: .NET 8 SDK ve Visual Studio'da \".NET masaüstü geliştirme\" iş yükü.\r\n" + db +
+                    (project.Files.Any(f => f.Name.EndsWith(".edmx", StringComparison.OrdinalIgnoreCase))
+                        ? "\r\nEntity Framework (.edmx): Visual Studio'nun EF tasarımcısı yalnızca .NET Framework projelerinde çalışır.\r\n" +
+                          "Kitaptaki gibi çalışmak için Visual Studio'da \"Windows Forms App (.NET Framework)\" projesi oluşturun, .cs dosyalarını ekleyin,\r\n" +
+                          "NuGet ile MySql.Data.EntityFramework paketini yükleyin ve Add > New Item > ADO.NET Entity Data Model ile modeli yeniden oluşturun.\r\n" : "") +
+                    ((project.References ?? new()).Any(r => r.Equals("MySql.Data", StringComparison.OrdinalIgnoreCase))
+                        ? "\r\nMySQL: Program, bilgisayarınızda çalışan bir MySQL sunucusuna bağlanır. App.config içindeki bağlantı cümlesini (şifre) kendi sunucunuza göre düzenleyin.\r\n" : ""));
             }
             return ms.ToArray();
         }
