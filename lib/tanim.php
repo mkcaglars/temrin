@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 const TANIM_SUTUNLAR = ['tur', 'no', 'olcut', 'puan', 'tip', 'hedef', 'girdi', 'beklenen', 'metin', 'tespit'];
 const TANIM_BILGI = ['ders', 'temrin_no', 'baslik', 'sinif', 'islem_konusu', 'proje_adi', 'sure_dk', 'ogretmen',
-                     'bicim_kesintisi', 'ad_kesintisi', 'ogretmen_onayi'];
-const KONTROL_TIPLERI = ['derleme', 'kontrol_var', 'kod_yapisi', 'kod_icerir', 'calistir'];
+                     'bicim_kesintisi', 'ad_kesintisi', 'ogretmen_onayi', 'ortam', 'lab_kurulum', 'lab_sifre'];
+// C# projesine uygulanan kontroller (motor, WebAssembly).
+const PROJE_KONTROL_TIPLERI = ['derleme', 'kontrol_var', 'kod_yapisi', 'kod_icerir', 'calistir'];
+// Laboratuvardaki (MySQL simülatörü) veritabanına uygulanan kontroller (studyo/lab-denetim.js).
+const LAB_KONTROL_TIPLERI = ['mysql_kurulu', 'vt_var', 'tablo_var', 'sutun_var', 'kayit_sayisi', 'iliski_var', 'sql_dogru', 'sql_sonuc',
+                             'yedek_alindi', 'kullanici_var'];
+const KONTROL_TIPLERI = [...PROJE_KONTROL_TIPLERI, ...LAB_KONTROL_TIPLERI];
+const ORTAMLAR = ['studyo', 'laboratuvar', 'ikisi'];
 const SORU_TIPLERI = ['cikti', 'coktan', 'acik'];
 const OLCUT_TIPLERI = ['ogretmen', 'sure', 'otomatik'];
 // Motor/KodYapisi.cs ile aynı liste.
@@ -79,6 +85,10 @@ function tanim_csv_oku(string $icerik): array
                 $o['kalemler'][] = $kalem;
                 unset($o);
                 break;
+            case 'hazirlik':
+                // Öğrencinin laboratuvarı ilk açıldığında çalışacak SQL (başlangıç veritabanı ve kayıtlar).
+                if ($h['metin'] !== '') $t['hazirlik'][] = str_replace("\r\n", "\n", $h['metin']);
+                break;
             case 'not':
             case '':
                 break;
@@ -97,7 +107,21 @@ function tanim_csv_oku(string $icerik): array
     }
     $onay = cikti_sozcuk_basit($b['ogretmen_onayi'] ?? '');
     if (!in_array($onay, ['', 'evet', 'hayir', 'acik', 'kapali', '1', '0'], true)) $hatalar[] = 'bilgi;ogretmen_onayi "evet" ya da "hayır" olmalı.';
+    $ortam = cikti_sozcuk_basit($b['ortam'] ?? '');
+    if ($ortam !== '' && !in_array($ortam, ORTAMLAR, true)) $hatalar[] = 'bilgi;ortam "studyo", "laboratuvar" ya da "ikisi" olmalı.';
+    $kurulum = cikti_sozcuk_basit($b['lab_kurulum'] ?? '');
+    if ($kurulum !== '' && !in_array($kurulum, ['hazir', 'kendisi'], true)) $hatalar[] = 'bilgi;lab_kurulum "hazır" ya da "kendisi" olmalı.';
     if (!$t['olcutler']) $hatalar[] = 'En az bir ölçüt satırı olmalı.';
+    if (in_array($ortam, ['studyo', 'laboratuvar'], true)) {
+        foreach ($t['olcutler'] as $o) {
+            foreach ($o['kalemler'] as $k) {
+                if ($k['tur'] !== 'kontrol') continue;
+                $lab = in_array($k['tip'], LAB_KONTROL_TIPLERI, true);
+                if ($ortam === 'studyo' && $lab) { $hatalar[] = "{$k['no']}: {$k['tip']} laboratuvar kontrolüdür; bilgi;ortam \"laboratuvar\" ya da \"ikisi\" olmalı."; break 2; }
+                if ($ortam === 'laboratuvar' && !$lab) { $hatalar[] = "{$k['no']}: {$k['tip']} C# projesi kontrolüdür; bilgi;ortam \"studyo\" ya da \"ikisi\" olmalı."; break 2; }
+            }
+        }
+    }
     $toplam = array_sum(array_column($t['olcutler'], 'puan'));
     if ($t['olcutler'] && $toplam !== 100) $hatalar[] = "Ölçüt puanlarının toplamı 100 olmalı (şu an $toplam).";
     foreach ($t['olcutler'] as $o) {
@@ -114,6 +138,14 @@ function tanim_csv_oku(string $icerik): array
     $t['bilgi']['bicim_kesintisi'] = (int)($b['bicim_kesintisi'] ?? 0);
     $t['bilgi']['ad_kesintisi'] = (int)($b['ad_kesintisi'] ?? 0);
     $t['bilgi']['ogretmen_onayi'] = in_array($onay, ['evet', 'acik', '1'], true);
+    if ($ortam !== '') $t['bilgi']['ortam'] = $ortam;
+    else unset($t['bilgi']['ortam']);
+    if (tanim_ortami($t) !== 'studyo') {
+        $t['bilgi']['lab_kurulum'] = $kurulum === 'kendisi' ? 'kendisi' : 'hazir';
+        $t['bilgi']['lab_sifre'] = trim($b['lab_sifre'] ?? '') !== '' ? trim($b['lab_sifre']) : '1234';
+    } else {
+        unset($t['bilgi']['lab_kurulum'], $t['bilgi']['lab_sifre']);
+    }
     return [$t, []];
 }
 
@@ -135,6 +167,31 @@ function tanim_kontrol_hatasi(array $k): ?string
             return null;
         case 'kod_icerir':
             return $k['beklenen'] === '' ? 'kod_icerir için beklenen (aranacak kod) gerekli' : null;
+        case 'vt_var':
+        case 'kullanici_var':
+            return trim($k['hedef']) === '' ? "{$k['tip']} için hedef (" . ($k['tip'] === 'vt_var' ? 'veritabanı adı' : 'kullanıcı adı') . ') gerekli' : null;
+        case 'tablo_var':
+        case 'sutun_var':
+        case 'kayit_sayisi':
+        case 'iliski_var':
+            $parca = $k['tip'] === 'sutun_var' ? 3 : 2;
+            $ornek = $k['tip'] === 'sutun_var' ? 'okul.ogrenci.ad' : 'okul.ogrenci';
+            $hedefler = array_filter(array_map('trim', explode(';', $k['hedef'])), 'strlen');
+            if (!$hedefler) return "{$k['tip']} için hedef gerekli (ör. $ornek)";
+            if ($k['tip'] !== 'tablo_var' && $k['tip'] !== 'sutun_var' && count($hedefler) > 1) return "{$k['tip']} için tek hedef yazılır";
+            foreach ($hedefler as $h) {
+                if (count(array_filter(explode('.', $h), fn($x) => trim($x) !== '')) !== $parca) return "hedef biçimi hatalı: '$h' (ör. $ornek)";
+            }
+            if ($k['tip'] === 'kayit_sayisi' && !preg_match('/^\s*(?:(>=|<=|>|<|=)?\s*\d+|\d+\s*-\s*\d+)\s*$/', $k['beklenen'])) {
+                return "kayit_sayisi için beklenen bir sayı olmalı: 5, >=5, <=10 ya da 3-10";
+            }
+            return null;
+        case 'sql_dogru':
+        case 'sql_sonuc':
+            if (trim($k['hedef']) === '') return "{$k['tip']} için hedef (veritabanı adı) gerekli";
+            if (!preg_match('/^\s*(select|with|show)\b/i', $k['girdi'])) return "{$k['tip']} için girdi sütununa bir SELECT sorgusu yazılmalı";
+            if ($k['tip'] === 'sql_sonuc' && trim($k['beklenen']) === '') return 'sql_sonuc için beklenen (sorgunun sonucu; satırlar | ile) gerekli';
+            return null;
         case 'calistir':
             if ($k['hedef'] === '') return 'calistir için hedef (tıklanacak düğme) gerekli';
             if ($k['beklenen'] === '') return 'calistir için beklenen gerekli (ör. lstSonuc=1|2|3 ya da hatasiz)';
@@ -198,7 +255,27 @@ function tanim_ogrenciye(array $t): array
             $sorular[] = $s;
         }
     }
-    return ['bilgi' => $t['bilgi'], 'araclar' => $t['araclar'], 'islemler' => $t['islemler'], 'olcutler' => $olcutler, 'sorular' => $sorular];
+    return ['bilgi' => $t['bilgi'] + ['ortam' => tanim_ortami($t)], 'araclar' => $t['araclar'], 'islemler' => $t['islemler'], 'olcutler' => $olcutler,
+            'sorular' => $sorular, 'hazirlik' => implode("\n", $t['hazirlik'] ?? [])];
+}
+
+/**
+ * Öğrencinin çalışacağı yer: "studyo" (C# Form Stüdyosu), "laboratuvar" (MySQL simülatörü) ya da "ikisi".
+ * bilgi;ortam yazılmamışsa kontrollerden anlaşılır.
+ */
+function tanim_ortami(array $t): string
+{
+    $o = $t['bilgi']['ortam'] ?? '';
+    if (in_array($o, ORTAMLAR, true)) return $o;
+    $lab = $proje = false;
+    foreach ($t['olcutler'] as $olcut) {
+        foreach ($olcut['kalemler'] as $k) {
+            if ($k['tur'] !== 'kontrol') continue;
+            if (in_array($k['tip'], LAB_KONTROL_TIPLERI, true)) $lab = true;
+            else $proje = true;
+        }
+    }
+    return $lab ? ($proje ? 'ikisi' : 'laboratuvar') : 'studyo';
 }
 
 /** Motorun çalıştıracağı kontroller (teslimden sonra öğrenci tarayıcısına, doğrulamada öğretmen tarayıcısına gider). */

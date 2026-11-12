@@ -41,6 +41,8 @@ header('Referrer-Policy: same-origin');
 <body data-temrin="<?= (int)$temrin ?>" data-ogrenci="<?= $e($ogrenci) ?>" data-rol="<?= $e($k['rol']) ?>" data-ad="<?= $e($k['ad']) ?>">
   <div id="app"><div class="boot"><div class="boot-logo">C#</div><div class="boot-text">Yükleniyor…</div></div></div>
   <noscript>Bu uygulama için JavaScript gereklidir.</noscript>
+  <!-- sql.js (laboratuvardaki MySQL'e bağlanan programlar için), Monaco'nun AMD yükleyicisinden ÖNCE yüklenmeli -->
+  <script src="lib/sqljs/sql-wasm.js"></script>
   <script src="temrin/monaco-ortam.js?v=<?= $v ?>"></script>
   <script src="lib/monaco/vs/loader.js"></script>
   <script type="module" src="temrin/temrin.js?v=<?= $v ?>"></script>

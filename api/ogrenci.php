@@ -6,6 +6,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/env.php';
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/sonuc.php';
+require_once __DIR__ . '/../lib/tanim.php';
 require_once __DIR__ . '/../lib/yetki.php';
 
 $k = oturum_zorunlu('ogrenci');
@@ -17,7 +18,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
 
 try {
     $pdo = db();
-    $st = $pdo->prepare('SELECT t.id, t.temrin_no, t.baslik, e.erisim_acik, e.erisim_baslangic, e.erisim_bitis
+    $st = $pdo->prepare('SELECT t.id, t.temrin_no, t.baslik, t.tanim, e.erisim_acik, e.erisim_baslangic, e.erisim_bitis
         FROM temrinler t LEFT JOIN temrin_erisim e ON e.temrin_id = t.id AND e.sinif = ?
         WHERE t.ders_id = ? ORDER BY t.temrin_no, t.id');
     $st->execute([$k['sinif'], $k['ders_id']]);
@@ -39,6 +40,7 @@ try {
         $r = $sonuclar[(int)$t['id']] ?? null;
         if (!$izin && $r === null) continue; // kapalı ve teslim edilmemiş temrin gösterilmez
         $o = ['temrin_id' => (int)$t['id'], 'temrin_no' => (int)$t['temrin_no'], 'baslik' => $t['baslik'],
+              'ortam' => tanim_ortami(json_decode($t['tanim'], true) ?: ['bilgi' => [], 'olcutler' => []]),
               'erisilebilir' => $izin, 'neden' => $neden, 'sonuc' => null,
               'calisma' => isset($calismalar[(int)$t['id']]) ? ['basladi' => true, 'teslim' => $calismalar[(int)$t['id']]['teslim_zamani'] !== null] : ['basladi' => false, 'teslim' => false]];
         if ($r !== null) {

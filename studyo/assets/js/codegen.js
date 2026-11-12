@@ -23,7 +23,8 @@ export function csString(s) {
     .replace(/"/g, '\\"')
     .replace(/\r/g, '\\r')
     .replace(/\n/g, '\\n')
-    .replace(/\t/g, '\\t') + '"';
+    .replace(/\t/g, '\\t')
+    .replace(/[\u0085\u2028\u2029\0]/g, (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')) + '"';
 }
 
 function csChar(c) {
@@ -41,13 +42,24 @@ function csFloat(n) {
 function csDecimal(v) {
   const n = Number(v) || 0;
   const neg = n < 0;
-  const abs = Math.abs(n);
-  const str = String(abs);
+  // En kısa ondalık yazım; 1e-7 gibi üslü gösterim düz sayıya çevrilir
+  let str = String(Math.abs(n));
+  const m = /^(\d+)(?:\.(\d+))?e([+-]\d+)$/.exec(str);
+  if (m) {
+    const digits = m[1] + (m[2] || '');
+    const point = m[1].length + Number(m[3]);
+    str = point <= 0 ? '0.' + '0'.repeat(-point) + digits : point >= digits.length ? digits + '0'.repeat(point - digits.length) : digits.slice(0, point) + '.' + digits.slice(point);
+  }
+  if (str.includes('.') && str.length - str.indexOf('.') - 1 > 28) str = str.slice(0, str.indexOf('.') + 29);
+  if (str.includes('.')) str = str.replace(/0+$/, '').replace(/\.$/, '');
   const scale = str.includes('.') ? str.length - str.indexOf('.') - 1 : 0;
-  const mant = Math.round(abs * Math.pow(10, scale));
+  let mant = BigInt(str.replace('.', '') || '0');
+  const max = (1n << 96n) - 1n;
+  if (mant > max) mant = max;
+  const word = (k) => BigInt.asIntN(32, (mant >> BigInt(32 * k)) & 0xFFFFFFFFn).toString();
   let flags = scale << 16;
-  if (neg) flags = flags - 2147483648;
-  return `new decimal(new int[] {\n${mant},\n0,\n0,\n${flags}})`;
+  if (neg && mant !== 0n) flags = flags - 2147483648;
+  return `new decimal(new int[] {\n${word(0)},\n${word(1)},\n${word(2)},\n${flags}})`;
 }
 
 export function csColor(v) {

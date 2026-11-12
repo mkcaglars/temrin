@@ -1,4 +1,5 @@
 // Monaco kod editörü: C# renklendirme, hata işaretleri, otomatik tamamlama.
+import { monacoTheme } from './theme.js';
 
 let monacoPromise = null;
 let activeOwner = null;
@@ -89,7 +90,7 @@ export class CodeEditor {
     const monaco = await loadMonaco();
     this.monaco = monaco;
     this.editor = monaco.editor.create(this.container, {
-      theme: 'vs',
+      theme: monacoTheme(),
       automaticLayout: true,
       fontSize: 14,
       fontFamily: '"Cascadia Code", Consolas, "Courier New", monospace',
@@ -121,7 +122,7 @@ export class CodeEditor {
       const uri = this.monaco.Uri.parse('file:///' + encodeURIComponent(name));
       model = this.monaco.editor.getModel(uri);
       if (model) model.dispose();
-      model = this.monaco.editor.createModel(content, 'csharp', uri);
+      model = this.monaco.editor.createModel(content, /\.(config|xml)$/i.test(name) ? 'xml' : 'csharp', uri);
       model.updateOptions({ tabSize: 4, insertSpaces: true });
       model._fileName = name;
       model._readOnly = readOnly;

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="o" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffa21a"/><stop offset="1" stop-color="#ff6a00"/></linearGradient>
+    <linearGradient id="ob" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffab2e"/><stop offset="1" stop-color="#ff7a0a"/></linearGradient>
+    <linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2e2e31"/><stop offset="1" stop-color="#1c1c1e"/></linearGradient>
+    <pattern id="g" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M12 0V12M0 12H12" stroke="#3a3a3e" stroke-width="1" stroke-dasharray="2 2"/></pattern>
+  </defs>
+  <!-- arkadaki pencere -->
+  <path d="M30 52 Q32 38 46 36 L178 18 Q192 16 194 30 L198 60 L28 70 Z" fill="#ff8a0d"/>
+  <!-- ana pencere -->
+  <rect x="18" y="42" width="222" height="190" rx="22" fill="url(#o)"/>
+  <circle cx="186" cy="54" r="7" fill="#2a2a2a"/><circle cx="205" cy="54" r="7" fill="#ffc20e"/><circle cx="224" cy="54" r="7" fill="#f2281a"/>
+  <rect x="24" y="64" width="210" height="160" rx="14" fill="#141416"/>
+  <!-- araç kutusu -->
+  <rect x="28" y="68" width="42" height="152" rx="10" fill="url(#d)"/>
+  <rect x="32" y="72" width="34" height="24" rx="6" fill="#2b2b2e" stroke="#ff8a00" stroke-width="2.5"/>
+  <path d="M43 77 L57 85 L51 86.5 L54 92 L51 93 L48 88 L44 91 Z" fill="#ff9100"/>
+  <g fill="#2b2b2e"><rect x="33" y="100" width="32" height="20" rx="5"/><rect x="33" y="124" width="32" height="20" rx="5"/><rect x="33" y="148" width="32" height="20" rx="5"/><rect x="33" y="172" width="32" height="20" rx="5"/><rect x="33" y="196" width="32" height="20" rx="5"/></g>
+  <g fill="none" stroke="#f2f2f2" stroke-width="2">
+    <path d="M43 104 H55 M49 104 V116" stroke-width="3"/>
+    <rect x="40" y="130" width="18" height="8" rx="2"/>
+    <rect x="43" y="152" width="12" height="12" rx="2"/><path d="M45.5 158 L48.5 161 L53 155"/>
+    <circle cx="49" cy="182" r="6"/>
+    <rect x="42" y="199" width="14" height="14"/><path d="M42 203.7H56M42 208.3H56M46.7 199V213M51.3 199V213" stroke-width="1.2"/>
+  </g>
+  <circle cx="49" cy="182" r="2.8" fill="#f2f2f2"/>
+  <!-- tasarım yüzeyi -->
+  <rect x="74" y="68" width="106" height="152" rx="8" fill="#1e1e20"/>
+  <rect x="74" y="68" width="106" height="152" rx="8" fill="url(#g)"/>
+  <rect x="83" y="86" width="86" height="28" fill="none" stroke="#ff9a00" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <rect x="90" y="91" width="72" height="18" rx="4" fill="#3a3a3d" stroke="#e8e8e8" stroke-width="2"/>
+  <rect x="95" y="95" width="2" height="10" fill="#e8e8e8"/>
+  <g fill="#ffa000"><rect x="79" y="82" width="8" height="8" rx="2"/><rect x="122" y="82" width="8" height="8" rx="2"/><rect x="165" y="82" width="8" height="8" rx="2"/><rect x="79" y="110" width="8" height="8" rx="2"/><rect x="122" y="110" width="8" height="8" rx="2"/></g>
+  <rect x="86" y="128" width="64" height="22" rx="6" fill="url(#ob)"/>
+  <rect x="86" y="160" width="20" height="20" rx="5" fill="url(#ob)"/>
+  <path d="M90.5 170 L95 174.5 L102 165.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="125" cy="170" r="10" fill="none" stroke="#4a4a4e" stroke-width="3"/><circle cx="125" cy="170" r="5.5" fill="#ff8a00"/>
+  <rect x="86" y="190" width="82" height="18" rx="5" fill="#38383b" stroke="#55555a"/>
+  <path d="M153 197 L157 201 L161 197" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+  <!-- özellikler paneli -->
+  <rect x="184" y="68" width="46" height="152" rx="10" fill="url(#d)"/>
+  <g fill="#4a4a4e"><rect x="189" y="76" width="36" height="4" rx="2"/><rect x="189" y="92" width="36" height="12" rx="3"/><rect x="189" y="122" width="34" height="4" rx="2"/><rect x="189" y="131" width="22" height="4" rx="2"/><rect x="189" y="141" width="36" height="13" rx="3"/><rect x="189" y="158" width="36" height="13" rx="3"/><rect x="189" y="175" width="36" height="13" rx="3"/><rect x="208" y="196" width="17" height="17" rx="3"/></g>
+  <rect x="189" y="84" width="24" height="4" rx="2" fill="#ff9100"/>
+  <rect x="189" y="107" width="22" height="11" rx="5.5" fill="#ff8a00"/><circle cx="205" cy="112.5" r="4.2" fill="#fff"/>
+  <rect x="189" y="196" width="17" height="17" rx="3" fill="url(#ob)"/>
+  <g fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"><path d="M217 146 l2.5 2.5 l2.5 -2.5"/><path d="M217 163 l2.5 2.5 l2.5 -2.5"/></g>
+  <!-- büyük imleç -->
+  <path d="M148 104 L188 129 L172 132 L182 150 L173 154 L163 136 L152 146 Z" fill="url(#ob)" stroke="#ffb23d" stroke-width="2" stroke-linejoin="round"/>
+</svg>

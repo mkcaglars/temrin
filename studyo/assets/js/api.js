@@ -53,6 +53,32 @@ export function calismaYukle() {
 
 const desteklenmiyor = () => Promise.reject(new ApiError('Bu işlem temrinde kullanılamaz.', 400));
 
+// Laboratuvar (MySQL simülatörü) verisi bu temrine ve öğrenciye aittir. Salt okunur görünümde (öğretmen,
+// teslim edilmiş ya da kapalı temrin) ve değerlendirme sırasında değişiklikler sunucuya yazılmaz.
+let labKaydi = true;
+export function labKaydiniKapat() { labKaydi = false; }
+const labSorgu = (ek) => {
+  const b = baglam();
+  return { temrin_id: b.temrin, ...(b.ogrenci ? { okul_no: b.ogrenci } : {}), ...ek };
+};
+const labYaz = async (govde, opts = {}) => {
+  if (!labKaydi || baglam().ogrenci) return { durum: 'tamam' };
+  const b = baglam();
+  const res = await fetch('../api/calisma.php', {
+    method: 'POST', credentials: 'same-origin', keepalive: !!opts.keepalive,
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': b.csrf },
+    body: JSON.stringify({ temrin_id: b.temrin, ...govde }),
+  }).catch(() => { throw new ApiError('Sunucuya ulaşılamıyor. İnternet bağlantınızı kontrol edin.', 0); });
+  let data = null;
+  try { data = await res.json(); } catch { /* boş */ }
+  if (!res.ok) {
+    // Teslim edilmiş ya da kapanmış temrin: laboratuvar artık kaydedilmez.
+    if (res.status === 409 || res.status === 403) labKaydi = false;
+    throw new ApiError(data?.mesaj || `Sunucu hatası (${res.status})`, res.status, data);
+  }
+  return data;
+};
+
 export const api = {
   async getProject() {
     const r = await calismaYukle();
@@ -91,6 +117,20 @@ export const api = {
   setNote: desteklenmiyor,
   students: desteklenmiyor,
   studentProjects: desteklenmiyor,
+  // Laboratuvar
+  labState: () => istek('GET', undefined, labSorgu({ lab: 'durum' })),
+  saveLabState: (state, opts = {}) => labYaz({ islem: 'lab_durum', state }, opts),
+  labDatabase: (name) => istek('GET', undefined, labSorgu({ lab_vt: name })),
+  saveLabDatabase: (name, data, opts = {}) => labYaz({ islem: 'lab_vt', ad: name, veri: data }, opts),
+  deleteLabDatabase: (name) => labYaz({ islem: 'lab_vt_sil', ad: name }),
+  distributeLabDatabase: desteklenmiyor,
+  // Laboratuvarın kendi görev sistemi Temrin'de kullanılmaz (görev ve puan Temrin panelindedir).
+  labTasks: () => Promise.resolve({ tasks: [], progress: {} }),
+  createLabTask: desteklenmiyor,
+  saveLabTask: desteklenmiyor,
+  deleteLabTask: desteklenmiyor,
+  saveLabProgress: () => Promise.resolve({}),
+  labProgress: desteklenmiyor,
 };
 
 /** Sunucunun UTC tarihini yerel saatle okunur biçime çevirir (c-lesson ile aynı). */
